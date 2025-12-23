@@ -14,16 +14,16 @@ Here, we transition from using provided overlays to building custom hardware arc
 
 Before building complex systems, we must understand the tools. These documents serve as the theoretical and practical foundation for working with Xilinx Zynq-7000 SoC devices.
 
-*   **[Phase 1: Board Bring-up & "Hello World"](The%20Zynq%20Learning%20Journey_%20Phase%201_%20Board%20Bring-up%20&%20_Hello%20World_.md)**
+*   **[Phase 1: Board Bring-up & "Hello World"](learning_phase1.md)**
     *   **Goal:** Establish a baseline. Ensure your hardware is functional and your environment is set up.
     *   **Content:** Booting, connectivity, and the first verification steps.
-*   **[Phase 2: The PYNQ Flow (Rapid Prototyping)](The%20Zynq%20Learning%20Journey_%20Phase%202_%20The%20PYNQ%20Flow%20(Rapid%20Prototyping).md)**
+*   **[Phase 2: The PYNQ Flow (Rapid Prototyping)](learning_phase2.md)**
     *   **Goal:** Understand what we are leaving behind (and when to still use it).
     *   **Content:** Using Python overlays for quick "proof of concepts" before committing to hard engineering.
-*   **[Phase 3: The Vivado Flow (Hardware Definition)](The%20Zynq%20Learning%20Journey_%20Phase%203_%20The%20Vivado%20Flow%20(Hardware%20Definition).md)**
+*   **[Phase 3: The Vivado Flow (Hardware Definition)](learning_phase3.md)**
     *   **Goal:** Learn the Language of Hardware.
     *   **Content:** Introduction to Xilinx Vivado, block designs, synthesis, and bitstream generation.
-*   **[Phase 4: The Embedded Linux Flow (OS Construction)](The%20Zynq%20Learning%20Journey_%20Phase%204_%20The%20Embedded%20Linux%20Flow%20(OS%20Construction).md)**
+*   **[Phase 4: The Embedded Linux Flow (OS Construction)](learning_phase4.md)**
     *   **Goal:** Build the Brain.
     *   **Content:** Introduction to PetaLinux, configuring the Linux kernel, and generating boot images tailored to your custom silicon.
 
