@@ -21,43 +21,51 @@ If you have not installed PetaLinux yet, follow these instructions. PetaLinux is
 ### **Step A: Prepare WSL2**
 
 1. **Update System:**  
-   sudo apt update && sudo apt upgrade \-y
+```bash
+   sudo apt update && sudo apt upgrade -y
+```
 
 2. Install Dependencies:  
-   Copy and run this command to install the required libraries. This covers the requirements for PetaLinux 2024.x/2025.x.  
-   sudo apt install \-y iproute2 gawk python3 python3-pip gcc git tar gzip unzip make net-tools \\  
-   libncurses-dev tftpd-hpa zlib1g-dev libssl-dev flex bison libselinux1 gnupg wget diffstat \\  
-   chrpath socat xterm autoconf libtool texinfo gcc-multilib build-essential libsdl1.2-dev \\  
-   libglib2.0-dev screen pax gzip locales libtool-bin cpio lib32z1 lz4 zstd rsync bc
-
+   Copy and run this command to install the required libraries. This covers the requirements for PetaLinux 2024.x/2025.x.
+```bash
+   sudo apt install -y iproute2 gawk python3 python3-pip gcc git tar gzip unzip make net-tools \
+     libncurses-dev tftpd-hpa zlib1g-dev libssl-dev flex bison libselinux1 gnupg wget diffstat \
+     chrpath socat xterm autoconf libtool texinfo gcc-multilib build-essential libsdl1.2-dev \
+     libglib2.0-dev screen pax gzip locales libtool-bin cpio lib32z1 lz4 zstd rsync bc
+```
    *Note for Debian Users:* If you encounter locale errors later, run sudo dpkg-reconfigure locales and ensure en\_US.UTF-8 is selected and generated.  
 3. Install Legacy libtinfo5 (Manual Fix):  
    Newer Debian versions (12+) have removed libtinfo5, but Xilinx tools still depend on it. You must manually install it from the legacy archives:  
-   \# Download the package from the Debian archives  
-   wget \[http://ftp.us.debian.org/debian/pool/main/n/ncurses/libtinfo5\_6.4-4\_amd64.deb\](http://ftp.us.debian.org/debian/pool/main/n/ncurses/libtinfo5\_6.4-4\_amd64.deb)
+```bash
+   # Download the package from the Debian archives  
+   wget http://ftp.us.debian.org/debian/pool/main/n/ncurses/libtinfo5_6.4-4_amd64.deb
 
-   \# Install it using dpkg  
-   sudo dpkg \-i libtinfo5\_6.4-4\_amd64.deb
-
+   # Install it using dpkg  
+   sudo dpkg -i libtinfo5_6.4-4_amd64.deb
+```
 4. Fix Default Shell:  
    PetaLinux requires /bin/sh to be bash, but on Debian/Ubuntu it defaults to dash. If dpkg-reconfigure does not work, force the link manually:  
-   \# Force /bin/sh to point to bash  
-   sudo ln \-sf /bin/bash /bin/sh
+```bash
+   # Force /bin/sh to point to bash  
+   sudo ln -sf /bin/bash /bin/sh
 
-   \# Verify the change (should say /bin/sh \-\> /bin/bash)  
-   ls \-l /bin/sh
+   # Verify the change (should say /bin/sh -> /bin/bash)  
+   ls -l /bin/sh
+```
 
 ### **Step B: Run the Installer**
 
 1. **Download:** Download the **PetaLinux 2025.1 Installer** (.run file) from the AMD/Xilinx website to your WSL2 filesystem (e.g., \~/Downloads).  
 2. **Create Directory:**  
-   sudo mkdir \-p /tools/Xilinx/PetaLinux/2025.1  
-   sudo chown \-R $USER:$USER /tools/Xilinx
-
+```bash
+   sudo mkdir -p /tools/Xilinx/PetaLinux/2025.1  
+   sudo chown -R $USER:$USER /tools/Xilinx
+```
 3. **Execute Installer:**  
-   chmod \+x ./petalinux-v2025.1-final-installer.run  
-   ./petalinux-v2025.1-final-installer.run \--dir /tools/Xilinx/PetaLinux/2025.1 \--log plnx\_install.log
-
+```bash
+   chmod +x ./petalinux-v2025.1-final-installer.run  
+   ./petalinux-v2025.1-final-installer.run --dir /tools/Xilinx/PetaLinux/2025.1 --log plnx_install.log
+```
    * *Note:* You will be prompted to accept license agreements. Press q to quit the reader and y to accept.
 
 ## **3\. Step-by-Step Instructions**
@@ -66,15 +74,17 @@ If you have not installed PetaLinux yet, follow these instructions. PetaLinux is
 
 1. Setup Environment:  
    Open your terminal and source the PetaLinux settings script.  
-   source /tools/Xilinx/PetaLinux/2025.1/settings.sh
+   `source /tools/Xilinx/PetaLinux/2025.1/settings.sh`
 
    *(Note: Adjust version number in path if you are using 2024.1)*  
-   *Check:* Run echo $PETALINUX. It should print the installation path.  
+   *Check:* Run `echo $PETALINUX`. It should print the installation path.  
 2. Create Project:  
    We create a new project using the Zynq template.  
-   cd \~/projects  
-   petalinux-create \--type project \--template zynq \--name loopback\_os  
-   cd loopback\_os
+```bash
+   cd ~/projects  
+   petalinux-create --type project --template zynq --name loopback_os  
+   cd loopback_os
+```
 
 ### **Part B: Import Hardware Configuration**
 
@@ -82,7 +92,7 @@ This is the magic step where PetaLinux reads your XSA file and automatically wri
 
 1. Import XSA:  
    (Replace \~/Downloads with wherever you saved your XSA file)  
-   petalinux-config \--get-hw-description \~/Downloads/system\_wrapper.xsa
+   `petalinux-config --get-hw-description ~/Downloads/system_wrapper.xsa`
 
 2. The Blue Configuration Menu:  
    A blue ASCII menu will appear. This is the System Configuration.  
@@ -100,33 +110,43 @@ This is the magic step where PetaLinux reads your XSA file and automatically wri
 By default, PetaLinux attempts to auto-detect your custom IP. Let's verify it or manually add it to ensure our C code can find it later.
 
 1. Generate Device Tree Source:  
-   The components/plnx\_workspace directory is often empty until the build process starts. Run this specific command to generate the device tree files without waiting for the full OS build:  
-   petalinux-build \-c device-tree
+   The `components/plnx_workspace` directory is often empty until the build process starts. Run this specific command to generate the device tree files without waiting for the full OS build:  
+   ```bash
+   petalinux-build -c device-tree
+   ```
 
 2. **Check Auto-Generated Device Tree:**  
-   * Open components/plnx\_workspace/device-tree/device-tree/pl.dtsi.  
-   * *Action:* Search for math\_accelerator.  
-   * *Success:* You should see a node with reg \= \<0x43c00000 ...\>. This confirms PetaLinux knows your IP exists and where it lives.
+   * Open `components/plnx_workspace/device-tree/device-tree/pl.dtsi`.  
+   * *Action:* Search for `math_accelerator`.  
+   * *Success:* You should see a node with `reg = <0x43c00000 ...>`. This confirms PetaLinux knows your IP exists and where it lives.
 
 ### **Part D: The Big Build**
 
 Now we compile the world.
 
 1. **Run Build:**  
+   ```bash
    petalinux-build
+   ```
 
    * *Warning:* The first build takes a long time (30-60 minutes) as it downloads and compiles the Linux Kernel, U-Boot, and the entire root filesystem from scratch.  
    * *Coffee Break Time.*
 
-   Troubleshooting: The "ildcard" Makefile ErrorIf the build fails with syntax error near unexpected token '(' pointing to ($wildcard \*.c) or (ildcard \*.c), you have a typo in your custom IP's Makefile. The term ildcard appears because Make expands $w (which is empty) leaving ildcard.**The Fix:**
+   Troubleshooting: The "ildcard" Makefile Error
+   
+   If the build fails with syntax error near unexpected token '(' pointing to ($wildcard \*.c) or (ildcard \*.c), you have a typo in your custom IP's Makefile. The term ildcard appears because Make expands `$w` (which is empty) leaving ildcard.
+   
+   **The Fix:**
 
    1. Go to your **Vivado IP Repository** (on your Windows/host machine).  
-   2. Navigate to ip\_repo/math\_accelerator\_1.0/drivers/math\_accelerator\_v1\_0/src/Makefile.  
+   2. Navigate to `ip_repo/math_accelerator_1.0/drivers/math_accelerator_v1_0/src/Makefile`.  
    3. Open it in a text editor.  
-   4. Locate the LIBSOURCES and OUTS lines (often lines 11-12).  
+   4. Locate the `LIBSOURCES` and `OUTS` lines (often lines 11-12).  
    5. Change them to:  
-      LIBSOURCES=$(wildcard \*.c)  
-      OUTS \= \*.o
+      ```bash
+      LIBSOURCES=$(wildcard *.c)  
+      OUTS = *.o
+      ```
 
       *Critical check:* Ensure the $ is **outside** the parenthesis $(...), not inside ($...).  
    6. Save the file.  
@@ -136,17 +156,23 @@ Now we compile the world.
       * **Regenerate:** Right-click and select **Generate Output Products** (ensure Synthesis is checked).  
       * **Bitstream:** You **must** run **Generate Bitstream** again because resetting the products wiped the previous implementation.  
    8. **In Linux:** Copy the new verified XSA over.  
-   9. **Re-Import:** Run petalinux-config \--get-hw-description ... again. This extracts the new Makefile into the build system.  
+   9. **Re-Import:** Run petalinux-config --get-hw-description ... again. This extracts the new Makefile into the build system.  
    10. **Build:** Run petalinux-build.
 
-   Troubleshooting: QEMU "struct sched\_attr" ErrorIf the build fails with redefinition of ‘struct sched\_attr’, your Debian host headers are conflicting with QEMU's internal code. This happens on newer Linux distributions.**The Fix:**
+   Troubleshooting: QEMU "struct sched_attr" Error
+   
+   If the build fails with redefinition of ‘struct sched_attr’, your Debian host headers are conflicting with QEMU's internal code. This happens on newer Linux distributions.
+   
+   **The Fix:**
 
-   1. Open the failing file in your text editor (replace \<PROJECT\_DIR\> with your path):  
-      nano \<PROJECT\_DIR\>/build/tmp/work/x86\_64-linux/qemu-xilinx-native/8.2.7+git/git/linux-user/syscall.c
+   1. Open the failing file in your text editor (replace `<PROJECT_DIR>` with your path):  
+      ```bash
+      nano <PROJECT_DIR>/build/tmp/work/x86_64-linux/qemu-xilinx-native/8.2.7+git/git/linux-user/syscall.c
+      ```
 
-   2. Use Ctrl+W to search for struct sched\_attr.  
-   3. Comment out the entire struct definition (approximately 8-10 lines) by surrounding it with /\* and \*/.  
-      * *Reason:* The system header /usr/include/linux/sched/types.h already defines this, so QEMU doesn't need to redefine it.  
+   2. Use Ctrl+W to search for struct sched_attr.  
+   3. Comment out the entire struct definition (approximately 8-10 lines) by surrounding it with /* and */.  
+      * *Reason:* The system header `/usr/include/linux/sched/types.h` already defines this, so QEMU doesn't need to redefine it.  
    4. Save (Ctrl+O) and Exit (Ctrl+X).  
    5. Immediately run petalinux-build again. (Do not run clean, or it will revert your changes).
 
@@ -155,12 +181,14 @@ Now we compile the world.
 The Zynq needs a single file (BOOT.BIN) to start up. This file packages three things:
 
 1. **FSBL:** Initializes the chip.  
-2. **Bitstream:** Configures the FPGA (your math\_accelerator).  
+2. **Bitstream:** Configures the FPGA (your math_accelerator).  
 3. **U-Boot:** Loads Linux.  
 4. **Package Command:**  
-   petalinux-package \--boot \--fsbl images/linux/zynq\_fsbl.elf \--fpga images/linux/system.bit \--u-boot \--force
+   ```bash
+   petalinux-package --boot --fsbl images/linux/zynq_fsbl.elf --fpga images/linux/system.bit --u-boot --force
+   ```
 
-   * *Note:* The \--fpga flag is critical. Without it, your custom logic won't be loaded on boot.
+   * *Note:* The `--fpga` flag is critical. Without it, your custom logic won't be loaded on boot.
 
 ## **4\. Final Validation & Deployment (WSL2 Friendly)**
 
@@ -168,15 +196,21 @@ Since you are running WSL2, you cannot easily format an SD card directly from Li
 
 1. Generate WIC Image:  
    This command packages the Boot Partition (FAT32) and RootFS (EXT4) into a single .wic disk image.  
-   petalinux-package \--wic \--bootfiles "BOOT.BIN image.ub boot.scr" \--rootfs-file images/linux/rootfs.tar.gz
+   ```bash
+   petalinux-package --wic --bootfiles "BOOT.BIN image.ub boot.scr" --rootfs-file images/linux/rootfs.tar.gz
+   ```
 
 2. Verify Output:  
    Check that the file exists:  
-   ls \-lh images/linux/petalinux-sdimage.wic
+   ```bash
+   ls -lh images/linux/petalinux-sdimage.wic
+   ```
 
 3. Copy to Windows:  
    Transfer the image to your Windows C: drive (e.g., Downloads folder).  
-   cp images/linux/petalinux-sdimage.wic /mnt/c/Users/YOUR\_USER\_NAME/Downloads/
+   ```bash
+   cp images/linux/petalinux-sdimage.wic /mnt/c/Users/YOUR_USER_NAME/Downloads/
+   ```
 
 4. **Flash in Windows:**  
    * Download **BalenaEtcher** or **Rufus** on Windows.  
