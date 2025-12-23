@@ -144,3 +144,9 @@ Did it work? Let's check the artifact.
 * **Driver Fix:** We patched a known Vivado bug in the driver Makefile to ensure smooth Linux integration later.
 
 **Next Step:** In Step 2, we will pull this new IP into a Vivado Block Design and wire it up to the Zynq Processor.
+
+## **6. Next Step**
+
+We have the brick. Now let's build the house.
+
+**[Go to Step 2: The System Integration](loopback_step2.md)**

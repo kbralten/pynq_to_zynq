@@ -106,3 +106,9 @@ A system where the Linux CPU writes a value to a custom hardware register in the
 ### **Success Criteria**
 
 When you can boot a minimal Linux OS that you built yourself, on hardware you configured yourself, and talk to a logic block you designed yourself, you are ready to design a custom board.
+
+## **6. Next Phase**
+
+Ready to start? Let's check your hardware.
+
+**[Go to Phase 1: Board Bring-up & "Hello World"](learning_phase1.md)**

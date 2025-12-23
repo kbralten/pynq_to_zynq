@@ -750,3 +750,9 @@ You have physically wired a Video Card inside your chip.
 * **RGB2DVI** acts as the physical transmitter (PHY).
 
 **Next Step:** In Step 8, we will return to PetaLinux to enable the xlnx-drm drivers, which will detect this pipeline and expose it to Debian as /dev/dri/card0 (a standard graphics card).
+
+## **5. Next Step**
+
+The video pipeline is wired. Now we need to teach Linux how to drive it.
+
+**[Go to Step 8: Linux DRM Driver](loopback_step8.md)**

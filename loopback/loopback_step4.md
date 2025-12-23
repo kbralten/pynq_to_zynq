@@ -154,4 +154,10 @@ Congratulations\! You have completed the full embedded stack.
 3. **System:** You built a custom Linux kernel to host it.  
 4. **Software:** You wrote a C application to control it.
 
-This loopback\_test program is the foundation of every driver you will ever write. Whether you are controlling a $100,000 radar system or a simple LED, the mechanism (Base Address \+ Offset) is exactly the same.
+This loopback_test program is the foundation of every driver you will ever write. Whether you are controlling a $100,000 radar system or a simple LED, the mechanism (Base Address + Offset) is exactly the same.
+
+## **6. Next Step**
+
+You've built the system, but the development cycle is slow. Let's speed it up.
+
+**[Go to Step 5: Advanced Workflows](loopback_step5.md)**

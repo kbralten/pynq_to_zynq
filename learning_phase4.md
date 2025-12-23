@@ -125,3 +125,9 @@ petalinux-package \--wic \--bootfiles "BOOT.BIN image.ub boot.scr" \--rootfs-fil
 * **Artifact Generation:** You mastered creating .wic images, which simplifies deployment significantly compared to manually partitioning SD cards with fdisk.
 
 **Next Steps:** You now have the skills to modify the OS itself. If you need a realtime kernel patch or a specific WiFi driver, you now know exactly where to insert it in the build chain.
+
+## **Final Graduation**
+
+You now understand the Board, the PYNQ abstraction, the Hardware Design, and the OS Build. It is time to put it all together.
+
+**[Enter The Loopback Project](loopback/index.md)**

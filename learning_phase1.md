@@ -85,4 +85,10 @@ The Zynq chip checks physical pins on startup to decide where to boot from. We m
 * **Headless Setup:** You successfully brought up an embedded Linux system without a monitor or keyboard attached to the device.  
 * **The PYNQ Abstraction:** You verified that you can control physical hardware signals (LEDs/Buttons) using high-level Python code, bypassing the need for C drivers or Verilog for basic tasks.
 
-**Next Steps:** With the board confirmed working, you are now ready to begin the **Loopback Project** to learn how to build this entire stack from scratch yourself.
+**Next Steps:** With the board confirmed working, we will now look at how the PYNQ framework itself works.
+
+## **6. Next Phase**
+
+We will peel back the layers of the Python libraries to see how they talk to memory.
+
+**[Go to Phase 2: The PYNQ Flow (Rapid Prototyping)](learning_phase2.md)**

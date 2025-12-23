@@ -131,3 +131,9 @@ Did Step 2 work?
 * **Memory Mapping:** We established that physical address 0x43C00000 is now hard-wired to our custom Adder logic.
 
 **Next Step:** In Step 3, we leave the comfortable GUI of Vivado and enter the Linux terminal to build the OS that runs on this hardware.
+
+## **6. Next Step**
+
+The hardware is defined. Now we need an Operating System to manage it.
+
+**[Go to Step 3: The Embedded Linux Build](loopback_step3.md)**

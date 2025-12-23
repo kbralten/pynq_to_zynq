@@ -164,3 +164,9 @@ Now we switch to the Jupyter Notebook interface.
 * **Hybrid Driver Model:** You used a high-level PYNQ driver for the standard GPIO IP, but fell back to MMIO for your custom Counter IP within the *same* design.
 
 **Next Steps:** You now have the skills to build the hardware for any custom accelerator.
+
+## **6. Next Phase**
+
+The hardware is done. Now we need to build the software brain that runs on top of it.
+
+**[Go to Phase 4: The Embedded Linux Flow (OS Construction)](learning_phase4.md)**

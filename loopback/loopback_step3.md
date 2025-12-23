@@ -196,4 +196,10 @@ Since you are running WSL2, you cannot easily format an SD card directly from Li
 * **Kernel Compilation:** We built a custom Linux kernel that knows about our specific memory map.  
 * **Boot Packaging:** We bundled the FPGA Bitstream into the bootloader. This means when we turn the board on, our "Add 1" logic is physically programmed into the chip before Linux even starts.
 
-**Next Step:** The final step\! We will write a C program on the Zynq to poke address 0x43C00000 and see if our hardware adds 1 to our input.
+**Next Step:** The final step! We will write a C program on the Zynq to poke address 0x43C00000 and see if our hardware adds 1 to our input.
+
+## **6. Next Step**
+
+We have a custom OS running on custom hardware. Now let's prove we can talk to it.
+
+**[Go to Step 4: The Software Driver](loopback_step4.md)**

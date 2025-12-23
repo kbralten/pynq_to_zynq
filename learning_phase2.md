@@ -137,3 +137,9 @@ while True:
 * **MMIO (Memory Mapped I/O):** You demystified the driver layer. You learned that controlling hardware is fundamentally just writing integers to specific memory addresses (offsets) managed by the Linux kernel.
 
 **Why this matters:** When you build your custom "Loopback Project" later, there won't be a pre-made pynq.lib.LED driver for your custom IP. You will **have** to use MMIO to talk to it. You just learned how.
+
+## **6. Next Phase**
+
+Now that we know how to control the hardware, let's learn how to create it.
+
+**[Go to Phase 3: The Vivado Flow (Hardware Definition)](learning_phase3.md)**

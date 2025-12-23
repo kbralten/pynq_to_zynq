@@ -242,3 +242,9 @@ You have achieved the "Holy Grail" of embedded development:
 * **User Space:** Standard Debian 12 (Via DeBootstrap).
 
 You can now use apt install to add libraries, compilers, and tools, while still retaining full low-level access to your custom FPGA hardware via /dev/mem.
+
+## **5. Next Step**
+
+We have a powerful Linux computer. Now let's enable the High-Definition in HDMI.
+
+**[Go to Step 7: HDMI Video Output](loopback_step7.md)**

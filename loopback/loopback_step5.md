@@ -124,3 +124,9 @@ You have moved beyond "getting it to work" to "working efficiently."
 * **Self-Hosting** gives you a powerful on-board dev environment for debugging.
 
 You now possess the complete toolkit of a Zynq Full-Stack Developer.
+
+## **7. Next Step**
+
+We have a professional workflow, but a minimal OS. Let's upgrade to a full Desktop experience.
+
+**[Go to Step 6: The Debian Hybrid](loopback_step6.md)**

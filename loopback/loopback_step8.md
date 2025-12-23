@@ -719,9 +719,8 @@ See [GUI.md](../GUI.md) for detailed desktop setup instructions.
 
 ---
 
-**🎉 Congratulations!** You've successfully created a complete video output system from hardware to software, including custom kernel drivers and device tree configuration. The PYNQ-Z2 now has a fully functional HDMI output controlled by Linux!l)
-# renderD128    (render node, optional)
-```
+**🎉 Congratulations!** You've successfully created a complete video output system from hardware to software, including custom kernel drivers and device tree configuration. The PYNQ-Z2 now has a fully functional HDMI output controlled by Linux!
+
 
 ```bash
 # Check framebuffer
@@ -1121,13 +1120,16 @@ We need to update the Kernel (modules) and Device Tree (system.dtb).
 * **Cause:** Physical timing failure.  
 * **Check:** Did your "Heartbeat LED" (Step 7 Part F) light up? If not, the Clock Wizard isn't locked, and the HDMI PHY is dead.
 
-## **5\. Recap**
+## **5. Recap**
 
 You have done something very few developers accomplish: you built a custom video card from scratch.
 
-* **Vivado:** Wired the pixels.  
-* **Device Tree:** Wired the drivers.  
+* **Vivado:** Wired the pixels.
+* **Device Tree:** Wired the drivers.
 * **Linux:** Is now rendering graphics to a piece of silicon *you* designed.
 
-Next Step: Install a desktop environment\!  
-sudo apt install xfce4 xorg
+## **7. Next Step**
+
+We have video. Now let's add the keyboard, mouse, and other peripherals to make it a real computer.
+
+**[Go to Step 9: Peripheral Integration](loopback_step9.md)**
