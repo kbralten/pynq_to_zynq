@@ -66,30 +66,44 @@ Now we modify the Verilog code to make it do something.
    * We will keep the standard write logic (CPU writes to slv\_reg0).  
    * We will hijack the read logic for slv\_reg1. Instead of reading back a stored value, we will return slv\_reg0 \+ 1\.
 
-**Scenario A: If you see a case statement (Older Templates):**  // ... existing code ...  
-  case ( axi\_araddr\[ADDR\_LSB+OPT\_MEM\_ADDR\_BITS:ADDR\_LSB\] )  
+**Scenario A: If you see a case statement (Older Templates):**
+```Verilog
+  // ... existing code ...  
+case ( axi\_araddr\[ADDR\_LSB+OPT\_MEM\_ADDR\_BITS:ADDR\_LSB\] )  
     2'h0   : reg\_data\_out \<= slv\_reg0;  
     2'h1   : reg\_data\_out \<= slv\_reg1;  
     2'h2   : reg\_data\_out \<= slv\_reg2;  
     2'h3   : reg\_data\_out \<= slv\_reg3;  
     default : reg\_data\_out \<= 0;  
-  endcase  
-**Modified Code (Do This):**// ... existing code ...  
-case ( axi\_araddr\[ADDR\_LSB+OPT\_MEM\_ADDR\_BITS:ADDR\_LSB\] )  
- 2'h0   : reg\_data\_out \<= slv\_reg0;      // Read back input  
- 2'h1   : reg\_data\_out \<= slv\_reg0 \+ 32'd1; // HARDWARE ADDER LOGIC HERE  
- 2'h2   : reg\_data\_out \<= slv\_reg2;  
- 2'h3   : reg\_data\_out \<= slv\_reg3;  
- default : reg\_data\_out \<= 0;  
 endcase  
-Scenario B: If you see an assign statement (Newer Templates):Find the line starting with assign S\_AXI\_RDATA \= ... and modify the section for address 2'h1.**Original Code (Ternary Style):**assign S\_AXI\_RDATA \= (axi\_araddr\[ADDR\_LSB+OPT\_MEM\_ADDR\_BITS:ADDR\_LSB\] \== 2'h0) ? slv\_reg0 :   
+```
+**Modified Code (Do This):**
+```Verilog
+// ... existing code ...  
+case ( axi\_araddr\[ADDR\_LSB+OPT\_MEM\_ADDR\_BITS:ADDR\_LSB\] )  
+   2'h0   : reg\_data\_out \<= slv\_reg0;      // Read back input  
+   2'h1   : reg\_data\_out \<= slv\_reg0 \+ 32'd1; // HARDWARE ADDER LOGIC HERE  
+   2'h2   : reg\_data\_out \<= slv\_reg2;  
+   2'h3   : reg\_data\_out \<= slv\_reg3;  
+   default : reg\_data\_out \<= 0;  
+endcase  
+```
+**Scenario B: If you see an assign statement (Newer Templates)**: Find the line starting with `assign S\_AXI\_RDATA \= ...` and modify the section for address 2'h1.
+
+**Original Code (Ternary Style):**
+```Verilog
+assign S\_AXI\_RDATA \= (axi\_araddr\[ADDR\_LSB+OPT\_MEM\_ADDR\_BITS:ADDR\_LSB\] \== 2'h0) ? slv\_reg0 :   
                      (axi\_araddr\[ADDR\_LSB+OPT\_MEM\_ADDR\_BITS:ADDR\_LSB\] \== 2'h1) ? slv\_reg1 :   
                      (axi\_araddr\[ADDR\_LSB+OPT\_MEM\_ADDR\_BITS:ADDR\_LSB\] \== 2'h2) ? slv\_reg2 :   
                      (axi\_araddr\[ADDR\_LSB+OPT\_MEM\_ADDR\_BITS:ADDR\_LSB\] \== 2'h3) ? slv\_reg3 : 0;  
-**Modified Code (Do This):**assign S\_AXI\_RDATA \= (axi\_araddr\[ADDR\_LSB+OPT\_MEM\_ADDR\_BITS:ADDR\_LSB\] \== 2'h0) ? slv\_reg0 :   
+```
+**Modified Code (Do This):**
+```Verilog
+assign S\_AXI\_RDATA \= (axi\_araddr\[ADDR\_LSB+OPT\_MEM\_ADDR\_BITS:ADDR\_LSB\] \== 2'h0) ? slv\_reg0 :   
                      (axi\_araddr\[ADDR\_LSB+OPT\_MEM\_ADDR\_BITS:ADDR\_LSB\] \== 2'h1) ? slv\_reg0 \+ 32'd1 : // MODIFIED HERE  
                      (axi\_araddr\[ADDR\_LSB+OPT\_MEM\_ADDR\_BITS:ADDR\_LSB\] \== 2'h2) ? slv\_reg2 :   
                      (axi\_araddr\[ADDR\_LSB+OPT\_MEM\_ADDR\_BITS:ADDR\_LSB\] \== 2'h3) ? slv\_reg3 : 0;
+```
 
 4. **Save and Close** the file.
 
