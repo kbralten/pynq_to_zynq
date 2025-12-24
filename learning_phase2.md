@@ -26,16 +26,19 @@ The PYNQ image comes with a pre-compiled hardware design called base.bit. It con
    * Rename it to Phase2\_Learning.  
 2. Load the Bitstream:  
    Run the following code block:  
+   ```python
    from pynq import Overlay
 
-   \# This command programs the FPGA fabric instantly  
-   base \= Overlay("base.bit")
+   # This command programs the FPGA fabric instantly
+   base = Overlay("base.bit")
 
-   \# Check what IP blocks are available in this design  
-   \# This prints a dictionary of all hardware accelerators currently active  
-   print("Overlay Loaded. Hardware Blocks available:")  
-   for ip\_name in base.ip\_dict:  
-       print(f" \- {ip\_name}")
+   # Check what IP blocks are available in this design
+   # This prints a dictionary of all hardware accelerators currently active
+   print("Overlay Loaded. Hardware Blocks available:")
+   for ip_name in base.ip_dict:
+      print(f" - {ip_name}")
+
+   ```
 
 3. **Check:**  
    * **Visual:** The "DONE" LED (Yellow/Green) on the board might flicker briefly as the FPGA is reprogrammed.  
@@ -47,22 +50,26 @@ PYNQ provides Python classes that wrap the complex AXI protocol into simple obje
 
 1. Control LEDs:  
    The base overlay object automatically creates drivers for known peripherals.  
-   from pynq.lib import LED, Button
+```python
+from pynq.lib import LED, Button
 
-   \# Address the 4 User LEDs (LD0 \- LD3)  
-   led0 \= base.leds\[0\]  
-   led1 \= base.leds\[1\]
+# Address the 4 User LEDs (LD0 - LD3)
+led0 = base.leds[0]
+led1 = base.leds[1]
 
-   \# Turn them on/off  
-   led0.on()  
-   led1.off()
+# Turn them on/off
+led0.on()
+led1.off()
+```
 
    * *Action:* Look at your board. LD0 should be ON.  
 2. **Read Buttons:**  
-   \# Read Button 0 (BTN0)  
-   btn0 \= base.buttons\[0\]
+```python
+# Read Button 0 (BTN0)
+btn0 = base.buttons[0]
 
-   print(f"Button 0 State: {btn0.read()}")
+print(f"Button 0 State: {btn0.read()}")
+```
 
    * *Action:* Hold down BTN0 on the board and re-run the cell. The state should change from 0 to 1\.
 
@@ -74,33 +81,43 @@ We will bypass the Python driver and talk to the silicon directly using **Memory
 
 1. Find the Physical Address:  
    The AXI GPIO controller for the LEDs has a specific address on the internal system bus.  
-   \# Get the dictionary entry for the LED controller  
-   led\_ip \= base.ip\_dict\['leds\_gpio'\]
+   ```python
+   # Get the dictionary entry for the LED controller
+   led_ip = base.ip_dict['leds_gpio']
 
-   physical\_addr \= led\_ip\['phys\_addr'\]  
-   addr\_range \= led\_ip\['addr\_range'\]
+   physical_addr = led_ip['phys_addr']
+   addr_range = led_ip['addr_range']
 
-   print(f"LED Controller is at: 0x{physical\_addr:x}")
+   print(f"LED Controller is at: 0x{physical_addr:x}")
+   ```
 
    * *Note:* This is usually 0x41210000 for the PYNQ-Z2 base overlay.  
 2. Create an MMIO Instance:  
    We map that physical address into Python's memory space.  
+   ```python
    from pynq import MMIO
 
-   \# Create a window into the hardware  
-   led\_mmio \= MMIO(physical\_addr, addr\_range)
+   # Create a window into the hardware
+   led_mmio = MMIO(physical_addr, addr_range)
+   ```
 
 3. Poke the Hardware:  
    The AXI GPIO documentation states that Offset 0x0 is the Data Register. Writing bits here turns pins High/Low.  
-   \# Write 0xF (Binary 1111\) to offset 0x0  
-   \# This should turn ALL 4 LEDs ON  
-   led\_mmio.write(0x0, 0xF)
+   ```python
+   # Write 0xF (Binary 1111) to offset 0x0
+   # This should turn ALL 4 LEDs ON
+   led_mmio.write(0x0, 0xF)
+   ```
 
    * *Check:* Did all 4 LEDs light up?
 
-\# Write 0x5 (Binary 0101\) to offset 0x0  
-\# This should turn LD0 and LD2 ON, LD1 and LD3 OFF  
-led\_mmio.write(0x0, 0x5)
+   ```python
+   # Write 0x5 (Binary 0101) to offset 0x0
+   # This should turn LD0 and LD2 ON, LD1 and LD3 OFF
+   led_mmio.write(0x0, 0x5)
+   ```
+
+   * *Check:* Did LD0 and LD2 light up, while LD1 and LD3 are off?
 
 ## **4\. Final Validation: The Hybrid Test**
 
@@ -108,25 +125,27 @@ We will create a loop that uses the **High-Level** driver to read buttons, but u
 
 Run this loop in a new cell:
 
-import time
+   ```python
+   import time
 
-print("Press BTN0 to light up LEDs (MMIO Mode). Press BTN3 to exit.")
+   print("Press BTN0 to light up LEDs (MMIO Mode). Press BTN3 to exit.")
 
-while True:  
-    \# High-Level Read  
-    if base.buttons\[3\].read() \== 1:  
-        print("Exit command received.")  
-        break  
-          
-    \# Logic: Copy Button 0 state to all 4 LEDs  
-    if base.buttons\[0\].read() \== 1:  
-        \# Low-Level Write: Turn all ON (0xF)  
-        led\_mmio.write(0x0, 0xF)  
-    else:  
-        \# Low-Level Write: Turn all OFF (0x0)  
-        led\_mmio.write(0x0, 0x0)  
-          
-    time.sleep(0.1)
+   while True:  
+      # High-Level Read  
+      if base.buttons[3].read() == 1:  
+         print("Exit command received.")  
+         break  
+            
+      # Logic: Copy Button 0 state to all 4 LEDs  
+      if base.buttons[0].read() == 1:  
+         # Low-Level Write: Turn all ON (0xF)  
+         led_mmio.write(0x0, 0xF)  
+      else:  
+         # Low-Level Write: Turn all OFF (0x0)  
+         led_mmio.write(0x0, 0x0)  
+            
+      time.sleep(0.1)
+   ```
 
 **Action:** Press BTN0 repeatedly. The LEDs should flash in sync with your press.
 

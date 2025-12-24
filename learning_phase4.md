@@ -26,15 +26,19 @@ This set of scripts automates the complex process of fetching Ubuntu, cross-comp
 
 Get the build scripts from the official source.
 
-git clone \[https://github.com/Xilinx/PYNQ.git\](https://github.com/Xilinx/PYNQ.git)  
-cd PYNQ/sdbuild
+  ```bash
+  git clone https://github.com/Xilinx/PYNQ.git
+  cd PYNQ/sdbuild
+  ```
 
 ### **Step 2: Setup Environment**
 
 You can run this directly on your host (if it matches the supported OS exactly) or use the provided script to install QEMU and crosstool-ng.
 
-\# This installs generic dependencies (qemu, crosstool-ng)  
-./scripts/setup\_host.sh
+  ```bash
+  # This installs generic dependencies (qemu, crosstool-ng)  
+  ./scripts/setup_host.sh
+  ```
 
 * *Note:* If you are on a non-standard OS (like Debian/WSL), this script might fail. PYNQ now encourages using **Docker** for reproducible builds.
 
@@ -42,8 +46,10 @@ You can run this directly on your host (if it matches the supported OS exactly) 
 
 To build a custom image for the PYNQ-Z2:
 
-\# You must provide the "boards" directory containing Pynq-Z2.spec  
-make BOARDS=Pynq-Z2
+  ```bash
+  # You must provide the "boards" directory containing Pynq-Z2.spec
+  make BOARDS=Pynq-Z2
+  ```
 
 * *What happens:*  
   1. Downloads the Ubuntu Base RootFS (ARM).  
@@ -64,15 +70,19 @@ This is what we did in the Loopback Project, but formalized. This builds a "pure
 
 Instead of using a generic template, we will create a project specifically for the Zynq 7000\.
 
-source /tools/Xilinx/PetaLinux/2025.1/settings.sh  
-petalinux-create \--type project \--template zynq \--name custom\_os\_phase4  
-cd custom\_os\_phase4
+  ```bash
+  source /tools/Xilinx/PetaLinux/2025.1/settings.sh
+  petalinux-create --type project --template zynq --name custom_os_phase4
+  cd custom_os_phase4
+  ```
 
 ### **Step 2: Import Hardware (The Handshake)**
 
 You need the .xsa file from **Phase 3** (The Counter Project).
 
-petalinux-config \--get-hw-description \<path\_to\_phase3\_xsa\_folder\>
+  ```bash
+  petalinux-config --get-hw-description <path_to_phase3_xsa_folder>
+  ```
 
 * **Configuration:**  
   * **Image Packaging \> Root filesystem type:** Set to **EXT4**.  
@@ -82,7 +92,9 @@ petalinux-config \--get-hw-description \<path\_to\_phase3\_xsa\_folder\>
 
 PetaLinux assumes a minimal system. Let's add standard tools.
 
-petalinux-config \-c rootfs
+  ```bash
+  petalinux-config -c rootfs
+  ```
 
 * Navigate to **Filesystem Packages**.  
 * Enable: console \> network \> openssh. (This enables SSH access).  
@@ -92,11 +104,13 @@ petalinux-config \-c rootfs
 
 Since we are on WSL2/Modern Linux, we use the WIC format for easy flashing.
 
-\# 1\. compile everything  
-petalinux-build
+  ```bash
+  # 1. compile everything  
+  petalinux-build
 
-\# 2\. Package into a single disk image file  
-petalinux-package \--wic \--bootfiles "BOOT.BIN image.ub boot.scr" \--rootfs-file images/linux/rootfs.tar.gz
+  # 2. Package into a single disk image file  
+  petalinux-package --wic --bootfiles "BOOT.BIN image.ub boot.scr" --rootfs-file images/linux/rootfs.tar.gz
+  ```
 
 ### **Step 5: Output**
 

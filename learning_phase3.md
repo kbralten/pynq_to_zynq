@@ -32,30 +32,38 @@ We will create a logic block that counts ticks. This demonstrates internal state
 2. **Modify Verilog (axi\_dyn\_counter\_v1\_0\_S00\_AXI.v):**  
    * Open the source file.  
    * **Add Internal Signals:** Add these lines before the main logic:  
-     reg \[31:0\] internal\_count;  
-     wire enable\_signal;  
-     wire reset\_signal;
+     ```verilog
+     reg [31:0] internal_count;
+     wire enable_signal;
+     wire reset_signal;
+     ```
 
    * **Map Registers:**  
-     * slv\_reg0: Control Register (Bit 0 \= Enable, Bit 1 \= Reset).  
-     * slv\_reg1: Output Register (The Count).  
+     ```verilog
+     slv_reg0: Control Register (Bit 0 \= Enable, Bit 1 \= Reset).  
+     slv_reg1: Output Register (The Count).  
+     ```
    * **Implement Logic:** Add this block at the end of the file (before endmodule):  
-     // Mapping Control Bits  
-     assign enable\_signal \= slv\_reg0\[0\];  
-     assign reset\_signal  \= slv\_reg0\[1\];
+      ```verilog
+      // Mapping Control Bits  
+      assign enable_signal = slv_reg0[0];
+      assign reset_signal  = slv_reg0[1];
 
-     // Counter Logic  
-     always @( posedge S\_AXI\_ACLK ) begin  
-       if ( S\_AXI\_ARESETN \== 1'b0 || reset\_signal \== 1'b1 ) begin  
-         internal\_count \<= 0;  
-       end else if ( enable\_signal \== 1'b1 ) begin  
-         internal\_count \<= internal\_count \+ 1;  
-       end  
-     end
+      // Counter Logic
+      always @( posedge S_AXI_ACLK ) begin
+      if ( S_AXI_ARESETN == 1'b0 || reset_signal == 1'b1 ) begin
+         internal_count <= 0;
+      end else if ( enable_signal == 1'b1 ) begin
+         internal_count <= internal_count + 1;
+      end
+      end
+      ```
 
    * **Hijack Read Logic:** Find the assign S\_AXI\_RDATA (or case statement) logic we touched in the Loopback project. Modify address h1 to read internal\_count instead of slv\_reg1.  
-     // Example for Ternary Syntax (Newer Vivado):  
-     // ... (axi\_araddr\[...\] \== 2'h1) ? internal\_count : ...
+      ```verilog
+      // Example for Ternary Syntax (Newer Vivado):
+      // ... (axi_araddr[...] == 2'h1) ? internal_count : ...
+      ```
 
 3. **Package:**  
    * **Review and Package** \> **Re-Package IP**.  
@@ -106,52 +114,54 @@ Now we switch to the Jupyter Notebook interface.
    * Upload my\_counter.bit and my\_counter.hwh to the pynq home folder.  
 2. Create Notebook:  
    Create a new Python 3 notebook and run:  
-   from pynq import Overlay  
-   import time
+      ```python
+      from pynq import Overlay
+      import time
 
-   \# 1\. Load the Overlay  
-   \# PYNQ automatically parses the .hwh file to find our IP  
-   ol \= Overlay("my\_counter.bit")
+      # 1. Load the Overlay
+      # PYNQ automatically parses the .hwh file to find our IP
+      ol = Overlay("my_counter.bit")
 
-   \# 2\. Check available IPs  
-   \# We should see 'axi\_gpio\_0' and 'axi\_dyn\_counter\_0'  
-   print(ol.ip\_dict.keys())
+      # 2. Check available IPs
+      # We should see 'axi_gpio_0' and 'axi_dyn_counter_0'
+      print(ol.ip_dict.keys())
 
-   \# 3\. Create Drivers  
-   \# Standard PYNQ driver for LEDs  
-   leds \= ol.axi\_gpio\_0.channel1   
-   \# Custom IP access via MMIO  
-   counter \= ol.axi\_dyn\_counter\_0 
+      # 3. Create Drivers
+      # Standard PYNQ driver for LEDs
+      leds = ol.axi_gpio_0.channel1 
+      # Custom IP access via MMIO
+      counter = ol.axi_dyn_counter_0 
 
-   \# 4\. Test LEDs  
-   print("Blinking LEDs...")  
-   for i in range(4):  
-       leds.write(0xF, 0xF) \# All ON  
-       time.sleep(0.2)  
-       leds.write(0xF, 0x0) \# All OFF  
-       time.sleep(0.2)
+      # 4. Test LEDs
+      print("Blinking LEDs...")
+      for i in range(4):
+         leds.write(0xF, 0xF) # All ON
+         time.sleep(0.2)
+         leds.write(0xF, 0x0) # All OFF
+         time.sleep(0.2)
 
-   \# 5\. Test Counter  
-   print("Testing Custom Counter...")
+      # 5. Test Counter
+      print("Testing Custom Counter...")
 
-   \# Reset (Write 2 to Reg0)  
-   counter.write(0x0, 2\)  
-   \# Enable (Write 1 to Reg0)  
-   counter.write(0x0, 1\)
+      # Reset (Write 2 to Reg0)
+      counter.write(0x0, 2)
+      # Enable (Write 1 to Reg0)
+      counter.write(0x0, 1)
 
-   print("Counting for 1 second...")  
-   time.sleep(1.0)
+      print("Counting for 1 second...")
+      time.sleep(1.0)
 
-   \# Stop (Write 0 to Reg0)  
-   counter.write(0x0, 0\)
+      # Stop (Write 0 to Reg0)
+      counter.write(0x0, 0)
 
-   \# Read Result (Read Reg1 @ Offset 0x4)  
-   count\_val \= counter.read(0x4)
+      # Read Result (Read Reg1 @ Offset 0x4)
+      count_val = counter.read(0x4)
 
-   \# Math check: Clock is 100MHz (standard Zynq FCLK).   
-   \# 1 second should be \~100,000,000 ticks.  
-   print(f"Counter Value: {count\_val}")  
-   print(f"Frequency: {count\_val / 1\_000\_000:.2f} MHz")
+      # Math check: Clock is 100MHz (standard Zynq FCLK). 
+      # 1 second should be ~100,000,000 ticks.
+      print(f"Counter Value: {count_val}")
+      print(f"Frequency: {count_val / 1_000_000:.2f} MHz")
+      ```
 
 3. **Expected Result:**  
    * LEDs on the board blink.  
