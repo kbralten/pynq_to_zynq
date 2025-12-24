@@ -111,7 +111,7 @@ We need to bundle everything for PetaLinux.
    * Go to **File** \> **Export** \> **Export Hardware**.  
    * Click **Next**.  
    * **Output:** Select **Include bitstream**. (Critical\! If you miss this, the FPGA won't get programmed).  
-   * **Files Name:** system\_wrapper (default is fine).  
+   * **Files Name:** system\_design\_wrapper (default is fine).  
    * **Export Location:** Choose a path (e.g., C:/pynq\_work/output).  
    * Click **Finish**.
 
@@ -120,7 +120,7 @@ We need to bundle everything for PetaLinux.
 Did Step 2 work?
 
 1. Navigate to your export folder (C:/pynq\_work/output).  
-2. Look for system\_wrapper.xsa.  
+2. Look for system\_design\_wrapper.xsa.  
 3. **Check file size:** It should be roughly **5 MB to 10 MB**.  
    * *Failure Mode:* If it is \~500 KB, you likely forgot to select "Include Bitstream" during export.
 

@@ -21,51 +21,62 @@ If you have not installed PetaLinux yet, follow these instructions. PetaLinux is
 ### **Step A: Prepare WSL2**
 
 1. **Update System:**  
-```bash
+   ```bash
    sudo apt update && sudo apt upgrade -y
-```
+   ```
 
 2. Install Dependencies:  
    Copy and run this command to install the required libraries. This covers the requirements for PetaLinux 2024.x/2025.x.
-```bash
+   ```bash
    sudo apt install -y iproute2 gawk python3 python3-pip gcc git tar gzip unzip make net-tools \
      libncurses-dev tftpd-hpa zlib1g-dev libssl-dev flex bison libselinux1 gnupg wget diffstat \
      chrpath socat xterm autoconf libtool texinfo gcc-multilib build-essential libsdl1.2-dev \
      libglib2.0-dev screen pax gzip locales libtool-bin cpio lib32z1 lz4 zstd rsync bc
-```
+   ```
+   *Troubleshooting tftpd-hpa:* If the installation fails with `tftpd-hpa package post-installation script subprocess returned error exit status 1`, you can safely disable the service:
+   ```bash
+   sudo systemctl disable tftpd-hpa
+   ```
    *Note for Debian Users:* If you encounter locale errors later, run sudo dpkg-reconfigure locales and ensure en\_US.UTF-8 is selected and generated.  
-3. Install Legacy libtinfo5 (Manual Fix):  
-   Newer Debian versions (12+) have removed libtinfo5, but Xilinx tools still depend on it. You must manually install it from the legacy archives:  
-```bash
+3. Install libtinfo5 (Legacy Dependency):  
+   Xilinx tools depend on `libtinfo5`. Try installing it via apt first. If that fails (on newer Debian/Ubuntu), perform a manual install.
+
+   **Option A: Standard Install (Ubuntu 20.04/22.04)**
+   ```bash
+   sudo apt install libtinfo5
+   ```
+
+   **Option B: Manual Install (Debian 12+ / Ubuntu 23.04+)**
+   ```bash
    # Download the package from the Debian archives  
    wget http://ftp.us.debian.org/debian/pool/main/n/ncurses/libtinfo5_6.4-4_amd64.deb
 
    # Install it using dpkg  
    sudo dpkg -i libtinfo5_6.4-4_amd64.deb
-```
+   ```
 4. Fix Default Shell:  
    PetaLinux requires /bin/sh to be bash, but on Debian/Ubuntu it defaults to dash. If dpkg-reconfigure does not work, force the link manually:  
-```bash
+   ```bash
    # Force /bin/sh to point to bash  
    sudo ln -sf /bin/bash /bin/sh
 
    # Verify the change (should say /bin/sh -> /bin/bash)  
    ls -l /bin/sh
-```
+   ```
 
 ### **Step B: Run the Installer**
 
-1. **Download:** Download the **PetaLinux 2025.1 Installer** (.run file) from the AMD/Xilinx website to your WSL2 filesystem (e.g., \~/Downloads).  
+1. **Download:** Download the [**PetaLinux 2025.1 Installer**](https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/embedded-design-tools/2025-1.html) (.run file) from the AMD/Xilinx website to your WSL2 filesystem (e.g., \~/Downloads).  
 2. **Create Directory:**  
-```bash
+   ```bash
    sudo mkdir -p /tools/Xilinx/PetaLinux/2025.1  
    sudo chown -R $USER:$USER /tools/Xilinx
-```
+   ```
 3. **Execute Installer:**  
-```bash
+   ```bash
    chmod +x ./petalinux-v2025.1-final-installer.run  
    ./petalinux-v2025.1-final-installer.run --dir /tools/Xilinx/PetaLinux/2025.1 --log plnx_install.log
-```
+   ```
    * *Note:* You will be prompted to accept license agreements. Press q to quit the reader and y to accept.
 
 ## **3\. Step-by-Step Instructions**
@@ -74,31 +85,34 @@ If you have not installed PetaLinux yet, follow these instructions. PetaLinux is
 
 1. Setup Environment:  
    Open your terminal and source the PetaLinux settings script.  
-   `source /tools/Xilinx/PetaLinux/2025.1/settings.sh`
+   ```bash
+   source /tools/Xilinx/PetaLinux/2025.1/settings.sh
+   ```
 
    *(Note: Adjust version number in path if you are using 2024.1)*  
    *Check:* Run `echo $PETALINUX`. It should print the installation path.  
 2. Create Project:  
-   We create a new project using the Zynq template.  
-```bash
-   cd ~/projects  
+   We create a new project using the Zynq template.   
+   ```bash
+   mkdir -p ~/projects
+   cd ~/projects
    petalinux-create --type project --template zynq --name loopback_os  
    cd loopback_os
-```
+   ```
 
 ### **Part B: Import Hardware Configuration**
 
 This is the magic step where PetaLinux reads your XSA file and automatically writes the Device Tree (.dts) files for you.
 
 1. Import XSA:  
-   (Replace \~/Downloads with wherever you saved your XSA file)  
-   `petalinux-config --get-hw-description ~/Downloads/system_wrapper.xsa`
+   (Replace \~/Downloads with wherever you saved your XSA file, you can also read this directly from the Windows file system with `/mnt/c/` or `/mnt/d/` etc.)  
+   `petalinux-config --get-hw-description ~/Downloads/system_design_wrapper.xsa`
 
 2. The Blue Configuration Menu:  
    A blue ASCII menu will appear. This is the System Configuration.  
    * **Goal:** We need to tell PetaLinux to boot from the SD card, not the QSPI flash (default).  
 3. **Configure for SD Boot:**  
-   * Navigate to **Image Packaging Configuration** \> **Root filesystem type**.  
+   * Navigate to **Image Packaging Configuration** \> **Root filesystem type** (it's the first option in the menu).  
    * Select **EXT4 (SD/eMMC/SATA/USB)**.  
    * *Why?* The default INITRAMFS is good for testing but gets wiped on reboot. EXT4 allows persistent storage on the SD card partition.  
 4. **Exit and Save:**  
@@ -206,11 +220,17 @@ Since you are running WSL2, you cannot easily format an SD card directly from Li
    ls -lh images/linux/petalinux-sdimage.wic
    ```
 
-3. Copy to Windows:  
+3. Copy to Windows (Option A - Copying):  
    Transfer the image to your Windows C: drive (e.g., Downloads folder).  
    ```bash
    cp images/linux/petalinux-sdimage.wic /mnt/c/Users/YOUR_USER_NAME/Downloads/
    ```
+
+   Option B: Direct Access (No Copy Needed):
+   You can access the file directly from Windows using the WSL network path.  
+   * Open Windows File Explorer.  
+   * Type `\\wsl.localhost\Ubuntu-20.04\home\YOUR_USER\projects\loopback_os\images\linux` in the address bar (adjust for your distro/user).  
+   * You can drag-and-drop the `.wic` file directly from here into BalenaEtcher.
 
 4. **Flash in Windows:**  
    * Download **BalenaEtcher** or **Rufus** on Windows.  
@@ -223,6 +243,12 @@ Since you are running WSL2, you cannot easily format an SD card directly from Li
    * Connect USB Serial cable (baud 115200).  
    * Power on.  
    * *Success:* You should see U-Boot messages, then Linux booting, and finally a login prompt (loopback-os login:). Log in with user petalinux and password petalinux (usually prompts to set a new one).
+6. **Validate Device Tree Mapping:**  
+   Once logged in, verify that the Linux kernel has loaded the driver for your IP.  
+   ```bash
+   ls /sys/bus/platform/devices/
+   ```
+   * *Check:* You should see a directory named `43c00000.math_accelerator` (or similar, matching your address). This confirms the hardware and software are talking!
 
 ## **5\. Recap: What did we just do?**
 

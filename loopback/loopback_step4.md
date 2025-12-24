@@ -89,7 +89,12 @@ int main() {
 
 ### **Part B: Building the Linux SDK**
 
-To compile code for the Zynq's Linux OS (which uses glibc and kernel headers), we cannot use a bare-metal compiler. We must generate the official Linux SDK for our specific build.
+To compile code for the Zynq's Linux OS, we need the **Platform SDK**.
+
+**Why do we need this?**
+The SDK is a standalone, distributable package containing the cross-compiler (`arm-linux-gnueabi-gcc`) and the system roots (`sysroot`).
+*   **Portability:** You can zip this SDK, send it to a software developer on a different team, and they can compile apps for your custom board *without* installing Vivado or PetaLinux.
+*   **Consistency:** It ensures everyone compiles against the exact same libraries (glibc, kernel headers) running on the hardware.
 
 1. Build the SDK:  
    Inside your PetaLinux project folder (`loopback_os`), run:  
@@ -110,7 +115,7 @@ To compile code for the Zynq's Linux OS (which uses glibc and kernel headers), w
    source images/linux/sdk/environment-setup-cortexa9t2hf-neon-xilinx-linux-gnueabi
    ```
 
-   * *Verification:* Run echo $CC. It should now print a long string starting with arm-xilinx-linux-gnueabi-gcc ... \--sysroot=....  
+   * *Verification:* Run `echo $CC`. It should now print a long string starting with `arm-xilinx-linux-gnueabi-gcc ... \--sysroot=....`  
 4. Compile:  
    Now we can compile using the standard variable.  
    ```bash
@@ -125,17 +130,26 @@ To compile code for the Zynq's Linux OS (which uses glibc and kernel headers), w
 
 Transfer the binary to the board.
 
-* Option 1: SCP (Network)  
+* **Option 1: SCP (Network)**
   If your board has an IP address (e.g., 192.168.2.99):  
   ```bash
   scp loopback_test petalinux@192.168.2.99:/home/petalinux/
   ```
 
-* **Option 2: SD Card (Physical)**  
+* **Option 2: SD Card (Windows/WSL Users)**  
+  Since Windows cannot read the storage partition (ext4), we use the boot partition (FAT32) as a bridge.
   1. Power off board.  
   2. Put SD card in PC.  
-  3. Copy loopback_test to the ROOTFS partition (e.g., /home/petalinux/ or just /root/).  
-  4. Boot board.
+  3. Copy `loopback_test` to the **BOOT** drive (the one Windows opens).  
+  4. Boot board and log in.  
+  5. Copy the file from the auto-mounted boot partition:  
+     ```bash
+     # Copy from /boot (PetaLinux automatically mounts the FAT32 partition here)
+     cp /boot/loopback_test ~/loopback_test
+     
+     # Make it executable
+     chmod +x ~/loopback_test
+     ```
 
 ### **Part D: Execution**
 
