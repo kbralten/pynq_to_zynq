@@ -25,90 +25,100 @@ We need a C program that maps physical memory into the program's virtual memory 
    On your Linux Host PC (not the board), create a file named loopback\_test.c.  
 2. Copy Code:  
    Paste the following code. Note: Change PHY\_ADDR if your address in Vivado was different.  
-   \#include \<stdio.h\>  
-   \#include \<stdlib.h\>  
-   \#include \<fcntl.h\>  
-   \#include \<sys/mman.h\>  
-   \#include \<unistd.h\>
+```C
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
-   // The Physical Address from Vivado Address Editor  
-   \#define PHY\_ADDR 0x43C00000   
-   // Size of the address range (we only need a few bytes, but 4KB page is standard)  
-   \#define MEM\_SIZE 4096
+// The Physical Address from Vivado Address Editor
+#define PHY_ADDR 0x43C00000 
+// Size of the address range (we only need a few bytes, but 4KB page is standard)
+#define MEM_SIZE 4096
 
-   int main() {  
-       int dh;  
-       void \*mapped\_base;  
-       volatile unsigned int \*reg\_ptr; // Volatile is crucial for hardware registers\!
+int main() {
+    int dh;
+    void *mapped_base;
+    volatile unsigned int *reg_ptr; // Volatile is crucial for hardware registers!
 
-       // 1\. Open /dev/mem (Requires Root)  
-       dh \= open("/dev/mem", O\_RDWR | O\_SYNC);  
-       if (dh \== \-1) {  
-           perror("Error opening /dev/mem. Are you root?");  
-           return \-1;  
-       }
+    // 1. Open /dev/mem (Requires Root)
+    dh = open("/dev/mem", O_RDWR | O_SYNC);
+    if (dh == -1) {
+        perror("Error opening /dev/mem. Are you root?");
+        return -1;
+    }
 
-       // 2\. Map Physical Memory to Virtual Memory  
-       mapped\_base \= mmap(0, MEM\_SIZE, PROT\_READ | PROT\_WRITE, MAP\_SHARED, dh, PHY\_ADDR);  
-       if (mapped\_base \== (void \*)-1) {  
-           perror("Error mapping memory");  
-           close(dh);  
-           return \-1;  
-       }
+    // 2. Map Physical Memory to Virtual Memory
+    mapped_base = mmap(0, MEM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, dh, PHY_ADDR);
+    if (mapped_base == (void *)-1) {
+        perror("Error mapping memory");
+        close(dh);
+        return -1;
+    }
 
-       // 3\. Create a pointer to our registers  
-       reg\_ptr \= (volatile unsigned int \*)mapped\_base;
+    // 3. Create a pointer to our registers
+    reg_ptr = (volatile unsigned int *)mapped_base;
 
-       printf("--- FPGA Loopback Test \---\\n");  
-       printf("Hardware Address: 0x%08x\\n", PHY\_ADDR);
+    printf("--- FPGA Loopback Test ---\n");
+    printf("Hardware Address: 0x%08x\n", PHY_ADDR);
 
-       // 4\. Write to Register 0 (Offset 0\)  
-       unsigned int input\_val \= 42;  
-       printf("Writing %d to Register 0...\\n", input\_val);  
-       reg\_ptr\[0\] \= input\_val;
+    // 4. Write to Register 0 (Offset 0)
+    unsigned int input_val = 42;
+    printf("Writing %d to Register 0...\n", input_val);
+    reg_ptr[0] = input_val;
 
-       // 5\. Read from Register 1 (Offset 4 bytes \= index 1\)  
-       // Recall: Our Verilog logic says Reg1 \= Reg0 \+ 1  
-       unsigned int output\_val \= reg\_ptr\[1\];  
-       printf("Read %d from Register 1.\\n", output\_val);
+    // 5. Read from Register 1 (Offset 4 bytes = index 1)
+    // Recall: Our Verilog logic says Reg1 = Reg0 + 1
+    unsigned int output_val = reg_ptr[1];
+    printf("Read %d from Register 1.\n", output_val);
 
-       // 6\. Validation  
-       if (output\_val \== input\_val \+ 1\) {  
-           printf("\\n\[SUCCESS\] Hardware added 1 correctly\!\\n");  
-       } else {  
-           printf("\\n\[FAIL\] Expected %d, got %d. Is the bitstream loaded?\\n", input\_val \+ 1, output\_val);  
-       }
+    // 6. Validation
+    if (output_val == input_val + 1) {
+        printf("\n[SUCCESS] Hardware added 1 correctly!\n");
+    } else {
+        printf("\n[FAIL] Expected %d, got %d. Is the bitstream loaded?\n", input_val + 1, output_val);
+    }
 
-       // Cleanup  
-       munmap(mapped\_base, MEM\_SIZE);  
-       close(dh);  
-       return 0;  
-   }
+    // Cleanup
+    munmap(mapped_base, MEM_SIZE);
+    close(dh);
+    return 0;
+}
+```
 
 ### **Part B: Building the Linux SDK**
 
 To compile code for the Zynq's Linux OS (which uses glibc and kernel headers), we cannot use a bare-metal compiler. We must generate the official Linux SDK for our specific build.
 
 1. Build the SDK:  
-   Inside your PetaLinux project folder (loopback\_os), run:  
-   petalinux-build \--sdk
+   Inside your PetaLinux project folder (`loopback_os`), run:  
+   ```bash
+   petalinux-build --sdk
+   ```
 
    * *Time:* This takes 10-20 minutes. It compiles the entire toolchain and libraries tailored for your board.  
 2. Package the Sysroot:  
    This extracts the generated SDK into a usable folder structure.  
-   petalinux-package \--sysroot
+   ```bash
+   petalinux-package --sysroot
+   ```
 
 3. Source the Environment:  
    This is the critical step. It exports the $CC variable and configures the path to the Linux headers (sys/mman.h).  
+   ```bash
    source images/linux/sdk/environment-setup-cortexa9t2hf-neon-xilinx-linux-gnueabi
+   ```
 
    * *Verification:* Run echo $CC. It should now print a long string starting with arm-xilinx-linux-gnueabi-gcc ... \--sysroot=....  
 4. Compile:  
    Now we can compile using the standard variable.  
-   $CC \-o loopback\_test loopback\_test.c
+   ```bash
+   $CC -o loopback_test loopback_test.c
+   ```
 
 5. Verify:  
-   Run file loopback\_test.  
+   Run `file loopback_test`.  
    * *Expected Output:* ELF 32-bit LSB executable, ARM, ...
 
 ### **Part C: Deployment**
@@ -117,20 +127,24 @@ Transfer the binary to the board.
 
 * Option 1: SCP (Network)  
   If your board has an IP address (e.g., 192.168.2.99):  
-  scp loopback\_test petalinux@192.168.2.99:/home/petalinux/
+  ```bash
+  scp loopback_test petalinux@192.168.2.99:/home/petalinux/
+  ```
 
 * **Option 2: SD Card (Physical)**  
   1. Power off board.  
   2. Put SD card in PC.  
-  3. Copy loopback\_test to the ROOTFS partition (e.g., /home/petalinux/ or just /root/).  
+  3. Copy loopback_test to the ROOTFS partition (e.g., /home/petalinux/ or just /root/).  
   4. Boot board.
 
 ### **Part D: Execution**
 
 1. **Log in** to the board (Serial or SSH).  
 2. **Run the App:**  
-   \# You generally need root privileges to access /dev/mem  
-   sudo ./loopback\_test
+   ```bash
+   # You generally need root privileges to access /dev/mem  
+   sudo ./loopback_test
+   ```
 
 ## **4\. Troubleshooting**
 
@@ -143,7 +157,7 @@ Transfer the binary to the board.
 **Error: "Read 0 from Register 1"**
 
 * **Cause:** The read worked, but the logic didn't.  
-* **Check:** Did you fix the Verilog in Step 1? If you left the default case statement without the \+ 1 logic, it will just read back 0 (default).
+* **Check:** Did you fix the Verilog in Step 1? If you left the default case statement without the \+1 logic, it will just read back 0 (default).
 
 ## **5\. Recap: The Full Circle**
 
