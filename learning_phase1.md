@@ -24,7 +24,7 @@ Ensure you have the physical assets required to power and connect the board.
 ### **Part A: Prepare the Boot Medium**
 
 1. **Download Image:**  
-   * Go to [PYNQ.io Boards Page](https://www.google.com/search?q=http://www.pynq.io/board.html).  
+   * Go to [PYNQ.io Boards Page](https://www.pynq.io/boards.html).  
    * Locate the **PYNQ-Z2** section.  
    * Download the latest SD Card Image (e.g., v3.0.1 or v2.7). *Note: This is a large zip file.*  
 2. **Flash the SD Card:**  

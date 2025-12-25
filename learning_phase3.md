@@ -23,60 +23,103 @@ We will create a logic block that counts ticks. This demonstrates internal state
 
 1. **Create IP Project:**  
    * Open Vivado. Click **Create Project**.  
-   * Name: ip\_counter\_temp.  
-   * Part: **PYNQ-Z2**.  
-   * Go to **Tools** \> **Create and Package New IP**.  
-   * Select **Create a new AXI4 peripheral**.  
-   * Name: axi\_dyn\_counter.  
-   * Click **Finish** \> **Edit IP**.  
-2. **Modify Verilog (axi\_dyn\_counter\_v1\_0\_S00\_AXI.v):**  
-   * Open the source file.  
-   * **Add Internal Signals:** Add these lines before the main logic:  
-     ```verilog
-     reg [31:0] internal_count;
-     wire enable_signal;
-     wire reset_signal;
-     ```
+   * Name: `ip_counter_temp`. Click **Next**.
+   * **Project Type:** Select **RTL Project** (Do not specify sources). Click **Next**.
+   * **Project Part:** Switch to the **Boards** tab.
+     * Search for: `pynq`.
+     * Select: **pynq-z2**.
+   * Click **Next**, then **Finish**.  
+   * **Start IP Wizard:** Go to **Tools** > **Create and Package New IP**. Click **Next**.
+   * **Task:** Select **Create a new AXI4 peripheral**. Click **Next**.
+   * **Details:**
+     * Name: `axi_dyn_counter`.
+     * Description: `My new AXI IP` (optional).
+     * Click **Next**.
+   * **Interfaces:** Keep defaults (Lite, Slave, 32-bit, 4 Registers). Click **Next**.
+   * **Summary:**
+     * Select **Edit IP** (Important!).
+     * Click **Finish**.
+     * *Observation:* A new Vivado window will open specifically for editing this IP.  
+2. **Modify Verilog Source:**  
+   In the *Sources* panel, you will see two files:
+   * `axi_dyn_counter_v1_0.v`: The top-level wrapper (instantiates the AXI logic).
+   * `axi_dyn_counter_v1_0_S00_AXI.v`: The actual AXI Lite implementation. **Edit this one.**
+   
+   * **Why not the wrapper?**
+     * **The Wrapper (`_v1_0.v`):** This file is just the shell. Its job is to group multiple interfaces together. For example, if your IP had an AXI-Lite port *plus* an AXI-Stream video port *plus* an Interrupt line, the wrapper connects them all into one black box.
+     * **The Logic (`_S00_AXI.v`):** This file contains the **AXI Protocol Engine**. Vivado has pre-written the complex code that handles the valid/ready handshakes and address decoding. It gives you simple variables (`slv_reg0`) to work with. If you wrote code in the wrapper, you would have to write the AXI state machine yourself!
 
-   * **Map Registers:**  
+   * **Open `axi_dyn_counter_v1_0_S00_AXI.v`.**  
+   
+   * **1. Add Logic (The Counter):**  
+     Scroll to the very bottom of the file (around line 400). You will see a placeholder:
      ```verilog
-     slv_reg0: Control Register (Bit 0 \= Enable, Bit 1 \= Reset).  
-     slv_reg1: Output Register (The Count).  
+     // Add user logic here
+
+     // User logic ends
      ```
-   * **Implement Logic:** Add this block at the end of the file (before endmodule):  
-      ```verilog
-      // Mapping Control Bits  
+     Paste the following code *between* those lines:
+     ```verilog
+      // -- Custom Signals --
+      reg [31:0] internal_count;
+      wire enable_signal;
+      wire reset_signal;
+
+      // -- Mappings --
+      // slv_reg0[0] = Enable
+      // slv_reg0[1] = Reset
       assign enable_signal = slv_reg0[0];
       assign reset_signal  = slv_reg0[1];
 
-      // Counter Logic
+      // -- Counter Logic --
       always @( posedge S_AXI_ACLK ) begin
-      if ( S_AXI_ARESETN == 1'b0 || reset_signal == 1'b1 ) begin
-         internal_count <= 0;
-      end else if ( enable_signal == 1'b1 ) begin
-         internal_count <= internal_count + 1;
+        if ( S_AXI_ARESETN == 1'b0 || reset_signal == 1'b1 ) begin
+           internal_count <= 0;
+        end else if ( enable_signal == 1'b1 ) begin
+           internal_count <= internal_count + 1;
+        end
       end
-      end
-      ```
+     ```
 
-   * **Hijack Read Logic:** Find the assign S\_AXI\_RDATA (or case statement) logic we touched in the Loopback project. Modify address h1 to read internal\_count instead of slv\_reg1.  
-      ```verilog
-      // Example for Ternary Syntax (Newer Vivado):
-      // ... (axi_araddr[...] == 2'h1) ? internal_count : ...
-      ```
+   * **2. Map Output (The Read):**  
+     Scroll up slightly (around line 303). Find the long line that handles reading data (`assign S_AXI_RDATA = ...`).
+     
+     **Change:** `... ? slv_reg1 : ...`
+     **To:** `... ? internal_count : ...`
+     
+     *Old Line (Simplified):*
+     `assign S_AXI_RDATA = (... == 2'h0) ? slv_reg0 : (... == 2'h1) ? slv_reg1 : ...`
+     
+     *New Line:*
+     `assign S_AXI_RDATA = (... == 2'h0) ? slv_reg0 : (... == 2'h1) ? internal_count : ...`
+
+     *Effect:* When the processor reads Register 1 (Offset 0x4), it now sees our live `internal_count` instead of the static `slv_reg1` value.
+
 
 3. **Package:**  
-   * **Review and Package** \> **Re-Package IP**.  
+   * Go to the **Package IP...** tab. 
+   * Click **Review and Package** \> **Re-Package IP**.  
    * Close the temporary IP project.
 
 ### **Part B: The Overlay Project**
 
 Now we build the system that PYNQ will load.
 
+> **Why a new project?**
+> *   **Separation of Concerns:** `ip_counter_temp` is like a "Library Project" (specifically for creating the component). `pynq_overlay_demo` is the "Application Project" (where we wire components together).
+> *   **Reusability:** By packaging the IP separately, you can now use `axi_dyn_counter` in *any* future Vivado project, just like you use the standard GPIO block.
+
 1. **Create Project:**  
-   * Create a new RTL Project: pynq\_overlay\_demo.  
+   * Create a new RTL Project: `pynq_overlay_demo`.  
    * Board: **PYNQ-Z2**.  
-2. **Setup Block Design:**  
+2. **Add IP Repository:**  
+   (Crucial for finding your custom IP)
+   * In the **Flow Navigator** (left), click **Settings**.
+   * Go to **IP** > **Repository**.
+   * Click **+** (Add Repository).
+   * Navigate to your `ip_repo` folder (usually inside `ip_counter_temp/ip_repo`).
+   * Select it and click **Select**. Click **OK**.
+3. **Setup Block Design:**  
    * **Create Block Design** named design\_1.  
    * **Add Zynq PS:** Add ZYNQ7 Processing System and run **Block Automation** (Apply Board Preset).  
    * **Add GPIO:** Add AXI GPIO. Run **Connection Automation**.  
@@ -84,10 +127,12 @@ Now we build the system that PYNQ will load.
      * *Note:* This maps the software "GPIO" directly to the physical LED pins.  
    * **Add Custom IP:** Add axi\_dyn\_counter. Run **Connection Automation**.  
      * Connects S00\_AXI to the Zynq GP Port.  
-3. **Validate & Build:**  
+      * Connects S00\_AXI to the Zynq GP Port.  
+4. **Validate & Build:**  
    * **Validate Design** (F6).  
-   * **Create HDL Wrapper** (Right-click design\_1 in Sources).  
+   * **Create HDL Wrapper** (Right-click design\_1 in Sources-\>Design Sources).  
    * **Generate Bitstream**.
+     * Wait for it to finish with the message "Bitstream generated successfully". You can click **Cancel** in the dialog box.
 
 ### **Part C: The Hardware Handoff (.hwh)**
 
@@ -113,55 +158,64 @@ Now we switch to the Jupyter Notebook interface.
    * Open Jupyter (http://pynq:9090).  
    * Upload my\_counter.bit and my\_counter.hwh to the pynq home folder.  
 2. Create Notebook:  
-   Create a new Python 3 notebook and run:  
-      ```python
-      from pynq import Overlay
-      import time
+   Create a new Python 3 notebook and create then run the following cells:  
+**Cell 1: Load Overlay & Create Drivers**
+   ```python
+   from pynq import Overlay
+   import time
 
-      # 1. Load the Overlay
-      # PYNQ automatically parses the .hwh file to find our IP
-      ol = Overlay("my_counter.bit")
+   # 1. Load the Overlay
+   ol = Overlay("my_counter.bit")
 
-      # 2. Check available IPs
-      # We should see 'axi_gpio_0' and 'axi_dyn_counter_0'
-      print(ol.ip_dict.keys())
+   # 2. Check IP Dictionary
+   print("Available IPs:", ol.ip_dict.keys())
 
-      # 3. Create Drivers
-      # Standard PYNQ driver for LEDs
-      leds = ol.axi_gpio_0.channel1 
-      # Custom IP access via MMIO
-      counter = ol.axi_dyn_counter_0 
+   # 3. Create Drivers
+   # Standard PYNQ driver for LEDs (High-Level)
+   leds = ol.axi_gpio_0.channel1 
+   # Custom IP access via MMIO (Low-Level)
+   counter = ol.axi_dyn_counter_0 
+   ```
 
-      # 4. Test LEDs
-      print("Blinking LEDs...")
-      for i in range(4):
-         leds.write(0xF, 0xF) # All ON
-         time.sleep(0.2)
-         leds.write(0xF, 0x0) # All OFF
-         time.sleep(0.2)
+   **Cell 2: Test LEDs (Standard GPIO)**
+   ```python
+   # Configure Direction (TRI Register)
+   # The High-Level driver defaults to Input. We must force Output.
+   # Offset 0x4 = Channel 1 Tri-State Control (0 = Output, 1 = Input)
+   ol.axi_gpio_0.mmio.write(0x4, 0x0)
+   print("Direction set to Output via MMIO.")
 
-      # 5. Test Counter
-      print("Testing Custom Counter...")
+   print("Blinking LEDs...")
+   for i in range(4):
+       leds.write(0xF, 0xF) # All ON
+       time.sleep(0.2)
+       leds.write(0x0, 0xF) # All OFF
+       time.sleep(0.2)
+   print("Done.")
+   ```
 
-      # Reset (Write 2 to Reg0)
-      counter.write(0x0, 2)
-      # Enable (Write 1 to Reg0)
-      counter.write(0x0, 1)
+   **Cell 3: Test Custom Counter (MMIO)**
+   ```python
+   print("Testing Custom Counter...")
 
-      print("Counting for 1 second...")
-      time.sleep(1.0)
+   # Reset (Write 2 to Reg0)
+   counter.write(0x0, 2)
+   # Enable (Write 1 to Reg0)
+   counter.write(0x0, 1)
 
-      # Stop (Write 0 to Reg0)
-      counter.write(0x0, 0)
+   print("Counting for 1 second...")
+   time.sleep(1.0)
 
-      # Read Result (Read Reg1 @ Offset 0x4)
-      count_val = counter.read(0x4)
+   # Stop (Write 0 to Reg0)
+   counter.write(0x0, 0)
 
-      # Math check: Clock is 100MHz (standard Zynq FCLK). 
-      # 1 second should be ~100,000,000 ticks.
-      print(f"Counter Value: {count_val}")
-      print(f"Frequency: {count_val / 1_000_000:.2f} MHz")
-      ```
+   # Read Result (Read Reg1 @ Offset 0x4)
+   count_val = counter.read(0x4)
+
+   # Math check: Clock is 100MHz. 1 second ~ 100M ticks.
+   print(f"Counter Value: {count_val}")
+   print(f"Frequency: {count_val / 1_000_000:.2f} MHz")
+   ```
 
 3. **Expected Result:**  
    * LEDs on the board blink.  
@@ -177,6 +231,6 @@ Now we switch to the Jupyter Notebook interface.
 
 ## **6. Next Phase**
 
-The hardware is done. Now we need to build the software brain that runs on top of it.
+The hardware is done. Now, let's look at where you go from here.
 
-**[Go to Phase 4: The Embedded Linux Flow (OS Construction)](learning_phase4.md)**
+**[Go to Phase 4: Beyond the Basics (Graduation)](learning_phase4.md)**

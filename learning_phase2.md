@@ -51,22 +51,25 @@ PYNQ provides Python classes that wrap the complex AXI protocol into simple obje
 1. Control LEDs:  
    The base overlay object automatically creates drivers for known peripherals.  
 ```python
-from pynq.lib import LED, Button
+# Access the LED GPIO block directly
+# Note: PYNQ maps IP blocks using their Vivado names (e.g., 'leds_gpio')
+leds = base.leds_gpio
 
-# Address the 4 User LEDs (LD0 - LD3)
-led0 = base.leds[0]
-led1 = base.leds[1]
+# Address the individual LEDs (indices 0-3)
+led0 = leds[0]
+led1 = leds[1]
 
-# Turn them on/off
-led0.on()
-led1.off()
+# Turn them on/off (Write 1 for High, 0 for Low)
+led0.write(1)
+led1.write(0)
 ```
 
    * *Action:* Look at your board. LD0 should be ON.  
 2. **Read Buttons:**  
 ```python
 # Read Button 0 (BTN0)
-btn0 = base.buttons[0]
+# Note: PYNQ maps this to 'btns_gpio'
+btn0 = base.btns_gpio[0]
 
 print(f"Button 0 State: {btn0.read()}")
 ```
@@ -132,12 +135,12 @@ Run this loop in a new cell:
 
    while True:  
       # High-Level Read  
-      if base.buttons[3].read() == 1:  
+      if base.btns_gpio[3].read() == 1:  
          print("Exit command received.")  
          break  
             
       # Logic: Copy Button 0 state to all 4 LEDs  
-      if base.buttons[0].read() == 1:  
+      if base.btns_gpio[0].read() == 1:  
          # Low-Level Write: Turn all ON (0xF)  
          led_mmio.write(0x0, 0xF)  
       else:  

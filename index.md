@@ -23,9 +23,9 @@ Before building complex systems, we must understand the tools. These documents s
 *   **[Phase 3: The Vivado Flow (Hardware Definition)](learning_phase3.md)**
     *   **Goal:** Learn the Language of Hardware.
     *   **Content:** Introduction to Xilinx Vivado, block designs, synthesis, and bitstream generation.
-*   **[Phase 4: The Embedded Linux Flow (OS Construction)](learning_phase4.md)**
-    *   **Goal:** Build the Brain.
-    *   **Content:** Introduction to PetaLinux, configuring the Linux kernel, and generating boot images tailored to your custom silicon.
+*   **[Phase 4: Beyond the Basics (Graduation)](learning_phase4.md)**
+    *   **Goal:** Graduation.
+    *   **Content:** Hybrid development, HLS, Video, and the handoff to the advanced Loopback Project.
 
 ---
 

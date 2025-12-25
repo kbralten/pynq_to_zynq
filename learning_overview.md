@@ -57,13 +57,13 @@ Ultimate Goal: To possess the full-stack engineering skills required to bring up
   * Add **AXI GPIO** or custom IP blocks.  
   * Generate Bitstream and Hardware Handoff files (.hwh).
 
-### **Phase 4: The Embedded Linux Flow (OS Construction)**
+### **Phase 4: Beyond the Basics (Graduation)**
 
-* **Goal:** Build the OS from source, bypassing the PYNQ abstraction.  
+* **Goal:** Consolidation and specialization.  
 * **Tasks:**  
-  * Setup a Linux build host (Ubuntu 20.04/22.04).  
-  * **Method A (Easier):** PYNQ SDBuild flow to generate custom SD images.  
-  * **Method B (Harder/Industry Standard):** PetaLinux flow. Manually configuring Kernel, U-Boot, and RootFS.
+  *   Explore High-Level Synthesis (HLS).
+  *   Understand Video Pipelines.
+  *   **The Fork:** Choose to stay in Python or dive into the OS (Loopback Project).
 
 ## **5\. The "Loopback" Proof Project**
 

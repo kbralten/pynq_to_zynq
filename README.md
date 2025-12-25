@@ -21,9 +21,10 @@ This series creates the foundational knowledge required to leave the "Python saf
 *   **Phase 3: The Vivado Flow (Hardware Definition)**
     *   Introduction to Xilinx Vivado.
     *   Creating custom hardware definitions (Bitstreams/XSA) tailored to specific needs.
-*   **Phase 4: The Embedded Linux Flow (OS Construction)**
-    *   Moving beyond the pre-supplied OS.
-    *   Constructing a custom Linux operating system specifically for your hardware design.
+*   **Phase 4: Beyond the Basics (Graduation)**
+    *   Consolidation of skills (Hybrid Development).
+    *   Pathways to specialization (HLS, Video, OS Construction).
+    *   Handoff to the **Loopback Project** for advanced users.
 
 ---
 
