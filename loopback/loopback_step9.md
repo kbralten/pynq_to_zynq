@@ -1672,7 +1672,14 @@ Develop embedded applications using:
 
 ---
 
-**🎉 Congratulations!** Your PYNQ-Z2 now has full USB host support with keyboard, mouse, storage, and serial device capabilities. Combined with HDMI video output from previous steps, you now have a complete interactive computing platform!
+---
+
+## **11. Next Step**
+
+Is the system booting slowly? Those 40-second pauses are annoying.
+Let's fix them and polish the final system.
+
+**[Proceed to Step 10: System Optimization](../loopback/loopback_step10.md)**
 
 ## **7. Conclusion**
 
