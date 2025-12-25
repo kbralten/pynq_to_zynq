@@ -312,6 +312,34 @@ Copy the following configuration (this matches the actual tested configuration):
 CONFIG_USB_SUPPORT=y
 CONFIG_USB=y
 CONFIG_USB_ANNOUNCE_NEW_DEVICES=y
+
+# Host Controller Drivers (HCD)
+CONFIG_USB_EHCI_HCD=y
+CONFIG_USB_EHCI_ROOT_HUB_TT=y
+CONFIG_USB_EHCI_HCD_PLATFORM=y
+
+# ChipIdea Driver (Zynq Hardware)
+CONFIG_USB_CHIPIDEA=y
+CONFIG_USB_CHIPIDEA_HOST=y
+CONFIG_USB_CHIPIDEA_GENERIC=y
+
+# PHY Support (TUSB1210 ULPI)
+CONFIG_USB_PHY=y
+CONFIG_USB_ULPI_BUS=y
+CONFIG_USB_ULPI=y
+
+# SPI User Mode Driver
+# we shouldn't need to set CONFIG_SPI and CONFIG_SPI_MASTER because they are already set by the base configuration, but CONFIG_SPI_SPIDEV depends on them and load order can be unpredictable
+CONFIG_SPI=y
+CONFIG_SPI_MASTER=y
+CONFIG_SPI_SPIDEV=y
+
+```
+
+**3. Save and Exit:**
+
+Save the file and exit the editor.
+
 ---
 
 ## **5. Device Tree Configuration**
@@ -332,15 +360,6 @@ Add the following USB configuration to your device tree. This should be in addit
 **Complete USB Device Tree Configuration:**
 
 ```dts
-/include/ "system-conf.dtsi"
-
-/ {
-    chosen {
-        bootargs = "console=ttyPS0,115200 root=/dev/mmcblk0p2 rw rootwait earlyprintk clk_ignore_unused loglevel=8";
-    };
-
-    /* ... video configuration from Step 8 here ... */
-};
 
 /* 8. Add USB PHY with TUSB1210 reset GPIO on MIO 46 */
 / {
@@ -375,7 +394,7 @@ Add the following USB configuration to your device tree. This should be in addit
 };
 
 /* 11. Configure I2C0 for userspace access */
-&iic0 {
+&i2c0 {
     status = "okay";
     clock-frequency = <100000>;  /* 100 kHz standard mode */
     
@@ -493,53 +512,34 @@ Your complete `system-user.dtsi` should now include:
 - I2C configuration
 - LED GPIO configuration
 
-Example structure:
-
-```dts
-/include/ "system-conf.dtsi"
-
-/ {
-    chosen {
-        bootargs = "...";
-    };
-
-    reserved-memory { /* Video CMA from Step 8 */ };
-    
-    /* Video nodes from Step 8 */
-    hdmi_out: hdmi-output { ... };
-    drm_pl_disp: drm-pl-disp-drv { ... };
-    
-    /* USB PHY node */
-    usb_phy0: phy0 { ... };
-    
-    /* LED configuration */
-    leds { ... };
-};
-
-/* Video VDMA and VTC from Step 8 */
-&axi_vdma_0 { ... };
-&v_tc_0 { ... };
-
-/* USB Controller */
-&usb0 { ... };
-
-/* SPI Controller */
-&spi0 { ... };
-
-/* I2C Controller */
-&iic0 { ... };
-```
-
 ---
 
 ## **6. Build and Deploy**
 
 Build the updated kernel and device tree, then deploy to the board.
 
-### **Part A: Clean and Build**
+### **Part A: Update and Build**
 
-```bash
+1.  **Update Hardware Definition:**
+    Since we modified the PL (added GPIO/SPI/I2C), we must import the new XSA (`system_design_wrapper.xsa`).
+    ```bash
+    cd ~/projects/loopback_os
+    petalinux-config --get-hw-description=<path-to-folder-containing-xsa> --silentconfig
+    ```
 
+2.  **Rebuild Components:**
+    We need to update the kernel (for USB config), the device tree (for pin mappings), and ensuring our dummy module is still built.
+    ```bash
+    petalinux-build -c kernel
+    petalinux-build -c xlnx-dummy-connector
+    petalinux-build -c device-tree
+    ```
+
+3.  **Package Boot Image:**
+    Create a new `BOOT.BIN` that includes the new bitstream.
+    ```bash
+    petalinux-package --boot --fsbl images/linux/zynq_fsbl.elf --fpga project-spec/hw-description/system_design_wrapper.bit --u-boot --force
+    ```
 ## **7. Testing and Validation**
 
 Boot the system and verify USB functionality.
@@ -579,6 +579,9 @@ dmesg | grep -i phy
 **1. Check USB Controller:**
 
 ```bash
+#install usbutils
+sudo apt-get install usbutils
+
 # List USB buses and devices
 lsusb
 
@@ -1048,45 +1051,7 @@ cat /sys/class/leds/pynq:red:ld0/brightness
 - **L123 (Power):** Should be solid ON (power indicator)
 
 **Generate activity to test:**
-
 ```bash
-# Genonfigured Zynq PS SPI controller** via EMIO to Arduino header  
-✅ **Configured Zynq PS I2C controller** via EMIO to Arduino header  
-✅ **Added AXI GPIO IP block** for LED control in programmable logic  
-✅ **Created pin constraints** for LEDs, SPI, and I2C  
-✅ **Created comprehensive kernel configuration** for USB host, storage, HID, and serial  
-✅ **Wrote device tree configuration** for all peripherals (USB, SPI, I2C, LEDs)  
-✅ **Configured LED activity triggers** for visual system feedback  
-✅ **Built and deployed** updated kernel and bitstream  
-✅ **Tested all peripherals** with real hardware and software tool
-
-**USB Peripherals:**
-- ✅ **Input Devices:** USB keyboards and mice for interactive use
-- ✅ **Storage:** USB flash drives and hard drives
-- ✅ **Serial Adapters:** FTDI, CP210x, PL2303 USB-to-serial converters
-- ✅ **WiFi Adapters:** USB WiFi dongles (with appropriate drivers)
-- ✅ **Printers:** USB printers (with CUPS)
-- ✅ **Webcams:** USB video devices (with V4L2)
-
-**Communication Interfaces:**
-- ✅ **SPI:** Access via `/dev/spidev0.0` for SPI sensors and devices
-- ✅ **I2C:** Access via `/dev/i2c-0` for I2C sensors and E───────────┐
-│                     Application Layer                              │
-│     (Desktop, Python scripts, C programs, Web Browser)             │
-├────────────────────────────────────────────────────────────────────┤
-│                      Linux Subsystems                              │
-│  ┌──────────┐ ┌──────────┐ ┌─────────┐ ┌──────┐ ┌──────┐ ┌─────┐│
-│  │ DRM/KMS  │ │USB Stack │ │  Input  │ │ SPI  │ │ I2C  │ │ LED ││
-│  │(Display) │ │(Devices) │ │(HID)    │ │      │ │      │ │     ││
-│  └──────────┘ └──────────┘ └─────────┘ └──────┘ └──────┘ └─────┘│
-├────────────────────────────────────────────────────────────────────┤
-│               Hardware (Zynq PS + PL)                              │
-│  ┌──────────────┐ ┌───────────┐ ┌─────────────┐ ┌─────────────┐ │
-│  │Video Pipeline│ │    USB    │ │  SPI/I2C    │ │  AXI GPIO   │ │
-│  │(PL: VDMA,   │ │(PS: ULPI) │ │(PS: EMIO→PL)│ │(PL: LEDs)   │ │
-│  │ VTC, HDMI)   │ │→ USB Port │ │→ Pins       │ │→ 4x LEDs    │ │
-│  └──────────────┘ └───────────┘ └─────────────┘ └─────────────┘ │
-└───────────
 # Turn LED on
 echo 255 > /sys/class/leds/pynq:red:ld3/brightness
 
@@ -1599,64 +1564,6 @@ Your PYNQ-Z2 now supports:
 - ✅ **Printers:** USB printers (with CUPS)
 - ✅ **Webcams:** USB video devices (with V4L2)
 
-### **Combined System Architecture**
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                   Application Layer                     │
-│  (Desktop, Terminal, File Manager, Web Browser)         │
-├─────────────────────────────────────────────────────────┤
-│           Linux Subsystems                              │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
-│  │ DRM/KMS     │  │  USB Stack  │  │Input System │    │
-│  │ (Display)   │  │  (Devices)  │  │ (HID/evdev) │    │
-│  └─────────────┘  └─────────────┘  └─────────────┘    │
-├─────────────────────────────────────────────────────────┤
-│              Hardware (Zynq PS + PL)                    │
-│  ┌─────────────────────┐  ┌──────────────────────┐    │
-│  │  Video Pipeline     │  │   USB Controller     │    │
-│  │  (PL: VDMA, VTC)   │  │   (PS: ChipIdea)     │    │
-│  │  → HDMI Output      │  │   → USB Type-A       │    │
-│  └SPI on Linux:** https://www.kernel.org/doc/html/latest/spi/index.html
-- **I2C on Linux:** https://www.kernel.org/doc/html/latest/i2c/index.html
-- **LED Subsystem:** https://www.kernel.org/doc/html/latest/leds/index.html
-- **Zynq TRM:** UG585 - Zynq-7000 Technical Reference Manual
-  - Chapter 36: USB Controller
-  - Chapter 19: SPI Controller
-  - Chapter 20: I2C Controller
-- **PYNQ-Z2 Schematics:** https://reference.digilentinc.com/reference/programmable-logic/pynq-z2/reference-manual
-
----
-
-## **Quick Reference Commands**
-
-**USB:**
-```bash
-lsusb                          # List USB devices
-lsusb -t                       # USB device tree
-evtest                         # Test keyboard/mouse
-```
-
-**SPI:**
-```bash
-ls /dev/spidev*                # Check SPI devices
-python3 -c "import spidev; print('SPI available')"
-```
-
-**I2C:**
-```bash
-ls /dev/i2c*                   # Check I2C devices
-i2cdetect -y 0                 # Scan I2C bus 0
-i2cget -y 0 0x50 0x00          # Read from device
-```
-
-**LEDs:**
-```bash
-ls /sys/class/leds/            # List LEDs
-cat /sys/class/leds/pynq:red:ld0/trigger  # Show trigger
-echo none > /sys/class/leds/pynq:red:ld0/trigger  # Manual mode
-echo 255 > /sys/class/leds/pynq:red:ld0/brightness  # Turn on
-```
 
 ---
 
@@ -1724,7 +1631,6 @@ Develop embedded applications using:
 
 ## **10. Additional Resources**
 
-- **Main README:** [../README.md](../README.md) - Complete system documentation
 - **GUI Setup:** [../GUI.md](../GUI.md) - Desktop environment setup
 - **USB on Linux:** https://www.kernel.org/doc/html/latest/driver-api/usb/index.html
 - **ChipIdea USB Driver:** https://www.kernel.org/doc/html/latest/usb/chipidea.html
@@ -1734,273 +1640,6 @@ Develop embedded applications using:
 ---
 
 **🎉 Congratulations!** Your PYNQ-Z2 now has full USB host support with keyboard, mouse, storage, and serial device capabilities. Combined with HDMI video output from previous steps, you now have a complete interactive computing platform!
-```bash
-# Create BOOT.BIN with FSBL, bitstream, and U-Boot
-petalinux-package --boot \
-    --fsbl images/linux/zynq_fsbl.elf \
-    --fpga images/linux/system.bit \
-    --u-boot images/linux/u-boot.elf \
-    --force
-```
-
-### **Part C: Deploy to SD Card**
-
-**Option 1: Update Boot Partition Only**
-
-```bash
-# Mount SD card boot partition
-sudo mount /dev/sdX1 /mnt/boot
-
-# Copy updated files
-sudo cp images/linux/BOOT.BIN /mnt/boot/
-sudo cp images/linux/image.ub /mnt/boot/
-sudo cp images/linux/boot.scr /mnt/boot/
-
-# Unmount
-sudo umount /mnt/boot
-sync
-```
-
-**Option 2: Update Kernel Modules Only**
-
-If you only changed kernel configuration and device tree:
-
-```bash
-# Mount rootfs
-sudo mount /dev/sdX2 /mnt/rootfs
-
-# Update kernel modules
-sudo tar -xzf images/linux/rootfs.tar.gz -C /mnt/rootfs ./lib/modules
-
-# Unmount
-sudo umount /mnt/rootfs
-sync
-```
-
-**Option 3: Full SD Card Image**
-
-```bash
-# Create complete WIC image
-petalinux-package --wic --images-dir images/linux/ \
-    --bootfiles "BOOT.BIN boot.scr image.ub"
-
-# Flash to SD card (CAUTION: erases entire card)
-sudo dd if=images/linux/petalinux-sdimage.wic of=/dev/sdX bs=4M status=progress conv=fsync
-sync
-```
-   - `reg = <0xe0002000 0x1000>`: USB0 ULPI viewport register address
-   - `view-port = <0x170>`: ULPI viewport register offset
-   - `reset-gpios = <&gpio0 46 1>`: MIO pin 46 for PHY reset (active-low)
-   - `drv-vbus`: Enable VBUS power control
-
-2. **USB Controller (`&usb0`):**
-   - `status = "okay"`: Enable the controller
-   - `dr_mode = "host"`: Configure as USB host (not device/OTG)
-   - `usb-phy = <&usb_phy0>`: Link to the PHY node
-
-**Important Notes:**
-
-- **GPIO Reference:** 
-  - `&gpio0` = PS GPIO controller (MIO pins)
-  - `&axi_gpio_0` = PL GPIO controller (for LEDs)
-- **Active-Low Reset:** The `1` flag indicates active-low (reset by pulling low)
-- **ULPI Viewport:** 0xe0002000 is the USB0 controller base address in Zynq PS
-- **VBUS Power:** `drv-vbus` enables 5V USB power output
-- **SPI/I2C Names:** Zynq PS names I2C as `iic`, but Linux typically uses `i2c` in device nodes
-- **LED Triggers:** Can be changed at runtime via `/sys/class/leds/*/trigger`
-
-### **Part C: Verify Complete Device T
-- SPI configuration
-- I2C configuration
-- LED GPIO configuration
-
-Example structure:
-
-```dts
-/include/ "system-conf.dtsi"
-
-/ {
-    chosen {
-        bootargs = "...";
-    };
-
-    reserved-memory { /* Video CMA from Step 8 */ };
-    
-    /* Video nodes from Step 8 */
-    hdmi_out: hdmi-output { ... };
-    drm_pl_disp: drm-pl-disp-drv { ... };
-    
-    /* USB PHY node */
-    usb_phy0: phy0 { ... };
-    
-    /* LED configuration */
-    leds { ... };
-};
-
-/* Video VDMA and VTC from Step 8 */
-&axi_vdma_0 { ... };
-&v_tc_0 { ... };
-
-/* USB Controller */
-&usb0 { ... };
-
-/* SPI Controller */
-&spi0 { ... };
-
-/* I2C Controller */
-&iic_vdma_0 { ... };
-&v_tc_0 { ... };
-
-/* USB Controller */
-&usb0 { ... };
-```NFIG_HID_MICROSOFT=y
-CONFIG_HID_MONTEREY=y
-
-# Input device support
-CONFIG_INPUT=y
-CONFIG_INPUT_KEYBOARD=y
-CONFIG_INPUT_MOUSE=y
-CONFIG_INPUT_MOUSEDEV=y
-CONFIG_INPUT_MOUSEDEV_PSAUX=y
-CONFIG_INPUT_MOUSEDEV_SCREEN_X=1024
-CONFIG_INPUT_MOUSEDEV_SCREEN_Y=768
-CONFIG_INPUT_EVDEV=y
-CONFIG_INPUT_UINPUT=y
-
-# USB Keyboard/Mouse (built-in)
-CONFIG_USB_KBD=y
-CONFIG_USB_MOUSE=y
-
-# Additional useful USB support
-CONFIG_USB_PRINTER=y
-CONFIG_USB_ACM=y
-CONFIG_USB_SERIAL=y
-CONFIG_USB_SERIAL_CONSOLE=y
-CONFIG_USB_SERIAL_GENERIC=y
-CONFIG_USB_SERIAL_FTDI_SIO=y
-CONFIG_USB_SERIAL_PL2303=y
-CONFIG_USB_SERIAL_CP210X=y
-
-# USB Common Platform
-CONFIG_USB_COMMON=y
-CONFIG_USB_ARCH_HAS_HCD=y
-```
-
-**Key Configuration Sections:**
-
-1. **USB Core:** Basic USB subsystem (`CONFIG_USB=y`)
-2. **PHY Support:** ULPI PHY and TUSB1210 driver
-3. **ChipIdea Controller:** Zynq's USB controller (`CONFIG_USB_CHIPIDEA=y`)
-4. **HID Support:** Keyboard and mouse drivers
-5. **Storage Support:** Mass storage devices
-6. **Input Subsystem:** Event device support (`CONFIG_INPUT_EVDEV=y`)
-7. **Serial Adapters:** FTDI, CP210x, PL2303 support
-
-### **Part B: Update Kernel Recipe**
-
-Tell PetaLinux to apply the USB configuration.
-
-**1. Edit or Create the Kernel Append Recipe:**
-
-```bash
-vi project-spec/meta-user/recipes-kernel/linux/linux-xlnx_%.bbappend
-```
-
-**2. Add USB Configuration Fragment:**
-
-If the file exists, add the line. If creating new, use this content:
-
-```bitbake
-FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
-
-SRC_URI += "file://usb_input.cfg"
-```
-
-If you already have `video_drm.cfg` from Step 8, the file should look like:
-
-```bitbake
-FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
-
-SRC_URI += " \
-    file://video_drm.cfg \
-    file://usb_input.cfg \
-"
-```
-   We need to locate the GPIO LED node. PetaLinux auto-generates this based on the AXI GPIO, but we can override it using the & reference.  
-   * *Assumption:* Your AXI GPIO for LEDs is named axi\_gpio\_0. Check components/plnx\_workspace/.../pl.dtsi if unsure.
-
-/include/ "system-conf.dtsi"
-
-/\* Configure SPI to use the spidev driver (allows Python/C userspace access) \*/  
-\&spi0 {  
-    status \= "okay";  
-    spidev@0 {  
-        compatible \= "rohm,dh2228fv"; /\* Generic compatible string often used for spidev \*/  
-        reg \= \<0\>;  
-        spi-max-frequency \= \<50000000\>;  
-    };  
-};
-
-/\* Configure I2C to be visible to userspace \*/  
-\&i2c0 {  
-    status \= "okay";  
-    /\* The i2c-dev driver handles this automatically \*/  
-};
-
-/\* LED Heartbeat Trigger \*/  
-/\* We need to append to the existing gpio-leds node.   
-   Note: The exact node name depends on how PetaLinux generated pl.dtsi.  
-   A safer way is to redefine the leds node if you know the gpio handle.  
-   For now, let's try the common alias approach. \*/
-
-\&axi\_gpio\_0 {  
-    /\* Ensure the driver knows these are LEDs \*/  
-    compatible \= "xlnx,xps-gpio-1.00.a";  
-};  
-*Better Approach for LEDs:* If you want a specific LED to blink, the best way in modern PetaLinux is often to verify the auto-generated pl.dtsi after build, or define gpio-leds manually.**Manual LED Node (Robust Method):**/ {  
-    leds {  
-        compatible \= "gpio-leds";  
-        led0 {  
-            label \= "pynq:green:ld0";  
-            gpios \= \<\&axi\_gpio\_0 0 0\>; /\* Pin 0 of AXI GPIO \*/  
-            linux,default-trigger \= "heartbeat"; /\* Blinks like a heartbeat \*/  
-        };  
-        led1 {  
-            label \= "pynq:green:ld1";  
-            gpios \= \<\&axi\_gpio\_0 1 0\>;  
-            linux,default-trigger \= "mmc0"; /\* Blinks on SD Card Activity \*/  
-        };  
-    };  
-};
-
-### **Part H: Build & Deploy**
-
-1. **Build:**  
-   petalinux-build \-c kernel  
-   petalinux-build \-c device-tree  
-   petalinux-package \--boot \--fsbl ... \--fpga ... \--u-boot \--force
-
-2. **Update SD Card:** Copy BOOT.BIN, image.ub, boot.scr.
-
-## **5\. Validation**
-
-1. **Visual Check:**  
-   * **LD0:** Should start beating (thump-thump... thump-thump) as soon as the Kernel loads.  
-   * **LD1:** Should flicker whenever the SD card is accessed.  
-2. **USB Check:**  
-   * Plug in a USB Flash Drive.  
-   * Run lsusb and dmesg. You should see "Mass Storage Device detected".  
-   * Mount it: mount /dev/sda1 /mnt.  
-3. **I2C/SPI Check:**  
-   * **I2C:** ls /dev/i2c\*. You should see /dev/i2c-0.  
-   * **SPI:** ls /dev/spidev\*. You should see /dev/spidev0.0.
-
-## **6\. Recap**
-
-You have now integrated the standard "Board Support Package" features. Your custom FPGA design is no longer just a math accelerator; it is a fully capable I/O platform.
-
-* **EMIO:** You routed Processor signals through the Fabric to reach external pins.  
-* **Device Tree Overlays:** You learned how to map generic GPIOs to specific Linux subsystem functions (LED Triggers).
 
 ## **7. Conclusion**
 

@@ -43,34 +43,80 @@ Before starting, ensure:
 
 ## **3. Step-by-Step Instructions**
 
-### **Part A: Create Custom Kernel Module (xlnx_dummy_connector)**
+### **Part A: Update Hardware Definition (Import XSA)**
 
-The Xilinx PL Display driver requires a DRM connector/bridge to report display modes. Since we have a simple HDMI output without DDC/EDID, we create a dummy connector that reports a fixed 720p60 mode.
+Before configuring drivers, we must tell PetaLinux about the new hardware design (XSA) we exported in Step 7.
 
-#### **1. Create Module Directory Structure**
+1.  **Locate your XSA:**
+    Ensure you know where you exported `system_design_wrapper.xsa` in Step 7.
+
+2.  **Import to PetaLinux:**
+    ```bash
+    cd ~/projects/loopback_os
+    petalinux-config --get-hw-description=<path-to-folder-containing-xsa> --silentconfig
+    ```
+    *   *Example:* `petalinux-config --get-hw-description=~/projects/loopback_system/ --silentconfig`
+    *   **Note:** The `--silentconfig` flag accepts default settings, which preserves our previous rootfs configuration. If you updated the bitstream, this is critical to ensure `system.bit` is updated.
+
+### **Part C: Create Custom Kernel Module (xlnx_dummy_connector)**
+
+The Xilinx PL Display driver requires a DRM connector/bridge to report display modes. We will create a new kernel module for this.
+
+#### **1. Create the Module**
+
+Use the PetaLinux tool to strictly create and register the module recipe. This prevents "Nothing PROVIDES" errors.
 
 ```bash
-cd ~/loopback_system/loopback_os
-mkdir -p project-spec/meta-user/recipes-modules/xlnx-dummy-connector/files
-cd project-spec/meta-user/recipes-modules/xlnx-dummy-connector/files
+cd ~/projects/loopback_os
+petalinux-create -t modules --name xlnx-dummy-connector --enable
 ```
 
-#### **2. Create the Module Source Code**
+#### **2. Replace the Source Code**
 
-Create `xlnx_dummy_connector.c`:
+PetaLinux creates a template "Hello World" driver. We need to replace it with our dummy connector code.
 
-```c
-// SPDX-License-Identifier: GPL-2.0
----
+1.  **Download Our Driver Source:**
+    *   **Source:** [`xlnx_dummy_connector.c`](xlnx_dummy_connector/xlnx_dummy_connector.c)
 
-### **Part C: Device Tree Configuration**
+2.  **Overwrite the PetaLinux File:**
+    ```bash
+    # Go to the module source directory
+    cd project-spec/meta-user/recipes-modules/xlnx-dummy-connector/files/
+    
+    # Copy our file here BUT rename it to match the recipe name (dashes)
+    cp <path-to-downloaded>/xlnx_dummy_connector.c ./xlnx-dummy-connector.c
+    ```
+
+3.  **Update Makefile:**
+    Ensure the Makefile targets the new filename (with dashes).
+
+    Overwrite `Makefile` with:
+    ```makefile
+    obj-m := xlnx-dummy-connector.o
+
+    SRC := $(shell pwd)
+
+    all:
+    	$(MAKE) -C $(KERNEL_SRC) M=$(SRC) modules
+
+    modules_install:
+    	$(MAKE) -C $(KERNEL_SRC) M=$(SRC) modules_install
+
+    clean:
+    	rm -f *.o *~ core .depend .*.cmd *.ko *.mod.c
+    	rm -f Module.markers Module.symvers modules.order
+    	rm -rf .tmp_versions Modules.symvers
+    ```
+
+
+### **Part D: Device Tree Configuration**
 
 The device tree describes the hardware to the Linux kernel. This is critical for driver initialization.
 
 #### **1. Open Device Tree File**
 
 ```bash
-cd ~/loopback_system/loopback_os
+cd ~/projects/loopback_os
 vi project-spec/meta-user/recipes-bsp/device-tree/files/system-user.dtsi
 ```
 
@@ -227,161 +273,10 @@ Replace or merge with the following complete configuration:
    - `clk_ignore_unused`: Prevents kernel from disabling unused clocks (critical!)
    - `drm.debug=0x1f`: Enables DRM debugging (remove after testing)
    - `loglevel=8`: Verbose kernel messages
-	.reset = drm_atomic_helper_connector_reset,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-};
-
-/* Encoder functions */
-static const struct drm_encoder_funcs xlnx_dummy_encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
-};
-
-/* Component binding */
-static int xlnx_dummy_bind(struct device *dev, struct device *master, void *data)
-{
-	struct xlnx_dummy *dummy = dev_get_drvdata(dev);
-	struct drm_device *drm = data;
-	struct drm_encoder *encoder = &dummy->encoder;
-	struct drm_connector *connector = &dummy->connector;
-	int ret;
-
-	dummy->drm = drm;
-
-	encoder->possible_crtcs = 1;
-	ret = drm_simple_encoder_init(drm, encoder, DRM_MODE_ENCODER_NONE);
-	if (ret) {
-		dev_err(dev, "Failed to initialize encoder: %d\n", ret);
-		return ret;
-	}
-
-	connector->polled = 0;
-	ret = drm_connector_init(drm, connector, &xlnx_dummy_connector_funcs,
-				 DRM_MODE_CONNECTOR_HDMIA);
-	if (ret) {
-		dev_err(dev, "Failed to initialize connector: %d\n", ret);
-		drm_encoder_cleanup(encoder);
-		return ret;
-	}
-
-	drm_connector_helper_add(connector, &xlnx_dummy_connector_helper_funcs);
-
-	ret = drm_connector_attach_encoder(connector, encoder);
-	if (ret) {
-		dev_err(dev, "Failed to attach connector: %d\n", ret);
-		drm_connector_cleanup(connector);
-		drm_encoder_cleanup(encoder);
-		return ret;
-	}
-
-	dev_info(dev, "Dummy encoder/connector bound successfully\n");
-	return 0;
-}
-
-static void xlnx_dummy_unbind(struct device *dev, struct device *master, void *data)
-{
-	struct xlnx_dummy *dummy = dev_get_drvdata(dev);
-
-	drm_connector_cleanup(&dummy->connector);
-	drm_encoder_cleanup(&dummy->encoder);
-}
-
-static const struct component_ops xlnx_dummy_component_ops = {
-	.bind = xlnx_dummy_bind,
-	.unbind = xlnx_dummy_unbind,
-};
-
-/* Platform driver */
-static int xlnx_dummy_probe(struct platform_device *pdev)
-{
-	struct xlnx_dummy *dummy;
-
-	dummy = devm_kzalloc(&pdev->dev, sizeof(*dummy), GFP_KERNEL);
-	if (!dummy)
-		return -ENOMEM;
-
-	platform_set_drvdata(pdev, dummy);
-
-	return component_add(&pdev->dev, &xlnx_dummy_component_ops);
-}
-
-static void xlnx_dummy_remove(struct platform_device *pdev)
-{
-	component_del(&pdev->dev, &xlnx_dummy_component_ops);
-}
-
-static const struct of_device_id xlnx_dummy_of_match[] = {
-	{ .compatible = "xlnx,dummy-connector" },
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, xlnx_dummy_of_match);
-
-static struct platform_driver xlnx_dummy_driver = {
-	.probe = xlnx_dummy_probe,
-	.remove = xlnx_dummy_remove,
-	.driver = {
-		.name = DRIVER_NAME,
-		.of_match_table = xlnx_dummy_of_match,
-	},
-};
-
-module_platform_driver(xlnx_dummy_driver);
-
-MODULE_AUTHOR("Custom");
-MODULE_DESCRIPTION("Xilinx DRM Dummy Encoder/Connector");
-MODULE_LICENSE("GPL");
-```
-
-#### **3. Create Module Makefile**
-
-Create `Makefile`:
-
-```makefile
-obj-m := xlnx_dummy_connector.o
-
-SRC := $(shell pwd)
-
-all:
-	$(MAKE) -C $(KDIR) M=$(SRC) modules
-
-modules_install:
-	$(MAKE) -C $(KDIR) M=$(SRC) modules_install
-
-clean:
-	rm -f *.o *~ core .depend .*.cmd *.ko *.mod.c
-	rm -f Module.markers Module.symvers modules.order
-	rm -rf .tmp_versions Modules.symvers
-```
-
-#### **4. Create BitBake Recipe**
-
-Go back to the recipe directory:
-
-```bash
-cd ~/loopback_system/loopback_os/project-spec/meta-user/recipes-modules/xlnx-dummy-connector
-```
-
-Create `xlnx-dummy-connector_1.0.bb`:
-
-```bitbake
-SUMMARY = "Xilinx DRM Dummy Connector Kernel Module"
-DESCRIPTION = "A simple DRM encoder/connector module for xlnx-drm framework"
-LICENSE = "GPL-2.0-only"
-LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/GPL-2.0-only;md5=801f80980d171dd6425610833a22dbe6"
-
-inherit module
-
-SRC_URI = "file://xlnx_dummy_connector.c \
-           file://Makefile \
-          "
-
-S = "${WORKDIR}"
-
-# Extra flags
-EXTRA_OEMAKE += "KDIR=${STAGING_KERNEL_DIR}"
-```
 
 #### **5. Add Module to Build**
+
+
 
 Edit `project-spec/meta-user/conf/user-rootfsconfig`:
 
@@ -398,7 +293,7 @@ IMAGE_INSTALL:append = " xlnx-dummy-connector"
 
 ---
 
-### **Part B: Kernel Configuration**
+### **Part E: Kernel Configuration**
 
 Enable the necessary DRM drivers and video subsystem support.
 
@@ -415,6 +310,7 @@ CONFIG_DRM_FBDEV_EMULATION=y
 # Xilinx DRM
 CONFIG_DRM_XLNX=y
 CONFIG_DRM_XLNX_BRIDGE=y
+CONFIG_DRM_XLNX_BRIDGE_VTC=y
 CONFIG_DRM_XLNX_PL_DISP=y
 
 # Framebuffer Support
@@ -463,19 +359,89 @@ SRC_URI += "file://video_drm.cfg"
 This tells PetaLinux to apply your configuration fragment during kernel build.
 ---
 
-### **Part D: Build the System**
+### **Part F: Build the System**
 
-Now we compile the kernel, modules, device tree, and create boot images.
+We need to update the Kernel (modules) and Device Tree (system.dtb).
 
-#### **1. Clean Previous Builds (Optional)**
+1. **Build:**
+   ```bash
+   petalinux-build -c kernel
+   petalinux-build -c xlnx-dummy-connector
+   petalinux-build -c device-tree
+   ```
 
-If you've made significant changes:
+2. Package Boot Image:  
+   (Because we changed the hardware in Step 7, we need a new BOOT.BIN with the new bitstream).  
+   ```bash
+   petalinux-package --boot --fsbl images/linux/zynq_fsbl.elf --fpga project-spec/hw-description/system_design_wrapper.bit --u-boot --force
+   ```
+   *   **Important:** We point to `project-spec/hw-description/system.bit` because `images/linux/system.bit` might be stale if we didn't run a full system build. The file in `project-spec` was updated when we imported the XSA in Part A.
 
-```bash
-cd ~/loopback_system/loopback_os
+3. **Update SD Card (Windows Friendly Method):**
+   
+   Since Windows cannot read the ext4 root partition, we will use the FAT32 boot partition as a bridge.
 
-# Clean kernel
-petalinux-build -c kernel -x cleansstate
+   *   **Copy Files to SD Card (BOOT partition):**
+       From the `images/linux/` directory, copy:
+       1.  `BOOT.BIN`
+       2.  `image.ub`
+       3.  `boot.scr`
+       4.  **`xlnx-dummy-connector.ko`** (Copy this file here so we can access it from Linux later).
+           *   *Find it here:* `/build/tmp/sysroots-components/zynq_generic_7z020/xlnx-dummy-connector/lib/modules/6.12.10-xilinx-g0a0f70e531c7/updates/xlnx-dummy-connector.ko` 
+           *   *(Or use `find . -name xlnx-dummy-connector.ko` to locate it)*
+
+### **Part G: Final Configuration (On Target)**
+
+1.  **Boot the Board:**
+    Insert SD card, connect HDMI, and power on.
+
+2.  **Install the Module:**
+    The module is currently sitting in `/boot` (pynq-2.7/debian automatically mounts the FAT32 partition there).
+
+    ```bash
+    # 1. Create the extra modules directory
+    sudo mkdir -p /lib/modules/$(uname -r)/extra/
+
+    # 2. Copy the module from the boot partition
+    sudo cp /boot/xlnx-dummy-connector.ko /lib/modules/$(uname -r)/extra/
+
+    # 3. Register the module
+    sudo depmod -a
+    
+    # 4. Verify it loads
+    sudo modprobe xlnx-dummy-connector
+    ```
+
+### **Part H: Validation (The moment of truth)**
+
+1. **Boot the Board:** Connect an HDMI monitor.  
+2. **Check Kernel Logs:**  
+   ```bash
+   dmesg | grep drm
+   ```
+
+   * *Success:* You should see \[drm\] Initialized xlnx\_pl\_disp and \[drm\] Found connector HDMI-A-1.  
+3. **Check Devices:**  
+   ```bash
+   ls /dev/dri/
+   ```
+
+   * *Success:* You should see card0 and controlD64.  
+4. Run Modetest:  
+   This tool talks directly to the kernel driver, bypassing X11.  
+   ```bash
+   #install the necessary packages
+   sudo apt-get install libdrm-tests
+
+   # List available connectors
+   modetest -M xlnx -c
+
+   # Run a test pattern (Connector ID 31, 720p60)  
+   # Note: Replace '31' with the ID found in the previous command  
+   modetest -M xlnx -s 31@30:1280x720-60
+   ```
+
+   * *Visual:* You should see a color bar pattern on your monitor\!
 
 ---
 
@@ -502,6 +468,25 @@ dmesg | grep -i dummy
 ---
 
 ## **4. Troubleshooting**
+
+### **Issue: VDMA Probe Failed (No IRQ)**
+
+**Symptoms:**
+`dmesg` shows:
+```
+xilinx-vdma 43000000.dma: error -EINVAL: failed to get irq
+xilinx-vdma 43000000.dma: probe with driver xilinx-vdma failed with error -22
+```
+
+**Cause:**
+Authentication of the interrupt connection failed. You missed connecting the VDMA `mm2s_introut` signal to the Zynq PS `IRQ_F2P` port in Vivado (Step 7), or the XSA wasn't updated.
+
+**Fix:**
+1.  Open Vivado (Step 7).
+2.  Enable `IRQ_F2P` in Zynq PS.
+3.  Connect `axi_vdma_0` interrupt to Zynq PS.
+4.  **Re-generate Bitstream** and **Export Hardware (XSA)**.
+5.  Re-run Step 8 Part A (Import XSA) and Part F (Package/Deploy).
 
 ### **Issue: No /dev/dri/card0 or /dev/fb0**
 
@@ -682,36 +667,10 @@ Hardware (PL):           VDMA → axis_to_video → rgb2hdmi → HDMI
 - ✅ Framebuffer device for pixel access
 - ✅ Test patterns via modetest
 - ✅ Direct framebuffer writes
-
-### **Next Steps**
-
-**Step 9: Desktop Environment (Optional)**
-
-Now that the display hardware is functional, you can install a graphical desktop:
-
-```bash
-# Install X11 and XFCE desktop
-apt install -y xserver-xorg-core xserver-xorg-video-fbdev
-apt install -y xfce4 xfce4-terminal
-
-# Or install a lightweight window manager
-apt install -y matchbox-window-manager xterm
-```
-
-See [GUI.md](../GUI.md) for detailed desktop setup instructions.
-
-**Alternative Applications:**
-- **Embedded GUI:** Use Qt5/GTK with DRM backend
-- **Custom graphics:** Direct DRM/KMS API programming
-- **Video playback:** ffmpeg with DRM output
-- **Framebuffer graphics:** Direct `/dev/fb0` access
-
 ---
 
 ## **6. Additional Resources**
 
-- **Main README:** [../README.md](../README.md) - Complete system documentation
-- **GUI Setup:** [../GUI.md](../GUI.md) - Desktop environment installation
 - **Xilinx DRM Wiki:** https://xilinx-wiki.atlassian.net/wiki/spaces/A/pages/18842546/Linux+DRM+KMS
 - **DRM Programming:** https://dri.freedesktop.org/docs/drm/
 - **PetaLinux Reference:** UG1144 - PetaLinux Tools Reference Guide
@@ -720,413 +679,6 @@ See [GUI.md](../GUI.md) for detailed desktop setup instructions.
 ---
 
 **🎉 Congratulations!** You've successfully created a complete video output system from hardware to software, including custom kernel drivers and device tree configuration. The PYNQ-Z2 now has a fully functional HDMI output controlled by Linux!
-
-
-```bash
-# Check framebuffer
-ls -l /dev/fb*
-
-# Expected output:
-# /dev/fb0      (framebuffer device)
-```
-
-```bash
-# Check framebuffer info
-cat /sys/class/graphics/fb0/virtual_size
-# Expected: 1280,720
-
-cat /sys/class/graphics/fb0/bits_per_pixel
-# Expected: 32
-```
-
-#### **3. Test with modetest**
-
-This utility directly interfaces with the DRM driver:
-
-```bash
-# List connectors and modes
-modetest -M xlnx -c
-
-# Expected output:
-# Connector 0: type HDMI-A-1, status: connected
-#   Modes:
-#     1280x720 60 74250 1280 1390 1430 1650 720 725 730 750 9000 flags: phsync, pvsync; type: preferred, driver
-```
-
-**If you see the above, your driver is working! 🎉**
-
-```bash
-# Display test pattern (color bars)
-# Note: Get connector ID and CRTC ID from previous command
-modetest -M xlnx -s <connector_id>@<crtc_id>:1280x720
-
-# Example (adjust IDs based on your output):
-modetest -M xlnx -s 31@30:1280x720
-```
-
-**Expected Result:** HDMI monitor displays colorful test pattern with color bars
-
-#### **4. Test Framebuffer Directly**
-
-```bash
-# Fill screen with solid red
-dd if=/dev/zero bs=4 count=$((1280*720)) | \
-    tr '\000' '\377' | dd of=/dev/fb0 bs=4 count=$((1280*720))
-
-# Clear screen (black)
-dd if=/dev/zero of=/dev/fb0 bs=$((1280*720*4)) count=1
-```
-
-**Expected Result:** Screen turns red, then black
-
-#### **5. Display Test Image**
-
-If you installed `fbi`:
-
-```bash
-# Display an image file
-fbi -d /dev/fb0 -T 1 /path/to/image.png
-```
-
-#### **6. Check System Status**
-
-```bash
-# Verify kernel modules loaded
-lsmod | grep -E "xlnx|drm"
-
-# Expected modules:
-# xlnx_dummy_connector
-# drm
-# drm_kms_helper
-# (possibly others)
-```
-
-```bash
-# Check CMA memory allocation
-cat /proc/meminfo | grep Cma
-
-# Expected:
-# CmaTotal:       16384 kB
-# CmaFree:        ~15000 kB (varies)
-```
-
-```bash
-# Check interrupts (VDMA should show activity)
-cat /proc/interrupts | grep vdma
-```
-# 4. Build complete system (rootfs, etc.)
-petalinux-build
-```
-
-**Expected Build Time:** 20-60 minutes depending on system (first full build can take longer)
-
-**Monitor Progress:**
-- Kernel build: ~10-20 minutes
-- Module build: ~1-2 minutes
-- Device tree: ~1 minute
-- Full system: additional 10-30 minutes for rootfs
-
-#### **3. Package Boot Image**
-
-Create BOOT.BIN with FSBL, bitstream, and U-Boot:
-
-```bash
-petalinux-package --boot \
-    --fsbl images/linux/zynq_fsbl.elf \
-    --fpga images/linux/system.bit \
-    --u-boot images/linux/u-boot.elf \
-    --force
-```
-
-**Output:** `images/linux/BOOT.BIN`
-
-#### **4. Verify Build Artifacts**
-
-Check that all necessary files exist:
-
-```bash
-ls -lh images/linux/
-```
-
-Expected files:
-- ✅ `BOOT.BIN` (First-stage boot loader + bitstream)
-- ✅ `image.ub` (FIT image: kernel + device tree + optional initramfs)
-- ✅ `boot.scr` (U-Boot boot script)
-- ✅ `system.dtb` (Device tree blob)
-- ✅ `rootfs.tar.gz` or `rootfs.ext4` (Root filesystem)
-
-#### **5. Check Module Installation**
-
-Verify the module is included in rootfs:
-
-```bash
-# Extract and check (if using tar.gz)
-tar -tzf images/linux/rootfs.tar.gz | grep xlnx_dummy_connector
-
-# Should show:
-# ./lib/modules/6.12.10-xilinx-.../updates/xlnx_dummy_connector.ko
-```
-
-Or if using ext4:
-
-```bash
-mkdir -p /tmp/rootfs_check
-sudo mount -o loop images/linux/rootfs.ext4 /tmp/rootfs_check
-ls /tmp/rootfs_check/lib/modules/*/updates/xlnx_dummy_connector.ko
-sudo umount /tmp/rootfs_check
-```
-
----
-
-### **Part E: Deploy to SD Card**
-
-Update the SD card with new boot files and kernel.
-
-#### **Option 1: Update Boot Partition Only (Preserves Debian)**
-
-If you have an existing Debian installation and want to keep it:
-
-```bash
-# Mount boot partition
-sudo mount /dev/sdX1 /mnt/boot
-
-# Copy new files
-sudo cp images/linux/BOOT.BIN /mnt/boot/
-sudo cp images/linux/image.ub /mnt/boot/
-sudo cp images/linux/boot.scr /mnt/boot/
-
-# Unmount
-sudo umount /mnt/boot
-```
-
-**Note:** Replace `/dev/sdX1` with your actual SD card boot partition
-
-#### **Option 2: Full SD Card Image**
-
-For a complete fresh install:
-
-```bash
-# Create WIC image (includes everything)
-petalinux-package --wic --images-dir images/linux/ \
-    --bootfiles "BOOT.BIN boot.scr image.ub"
-
-# Flash to SD card
-sudo dd if=images/linux/petalinux-sdimage.wic of=/dev/sdX bs=4M status=progress conv=fsync
-
-# Wait for completion
-sync
-```
-
-**⚠️ Warning:** This erases the entire SD card!
-
-#### **Option 3: Update Kernel in Existing Debian**
-
-If you only changed kernel/modules/device tree:
-
-```bash
-# Mount rootfs
-sudo mount /dev/sdX2 /mnt/rootfs
-
-# Update kernel modules
-sudo tar -xzf images/linux/rootfs.tar.gz -C /mnt/rootfs ./lib/modules
-
-# Update device tree (if needed)
-sudo cp images/linux/system.dtb /mnt/rootfs/boot/
-
-# Unmount
-sudo umount /mnt/rootfs
-```
-
----
-
-### **Part F: Configure Debian (On Target)**
-
-After booting with the new kernel, perform final configuration on the target system.
-
-#### **1. Boot the System**
-
-1. Insert SD card into PYNQ-Z2
-2. Connect HDMI monitor
-3. Connect serial console (115200 baud)
-4. Power on
-
-**Watch Boot Messages:**
-- Check for "xlnx-pl-disp" driver initialization
-- Look for "drm" device registration
-- Verify no critical errors
-
-#### **2. Login and Check System**
-
-```bash
-# Login via serial console
-# Username: root (or your configured user)
-# Password: (your password, or none if debug-tweaks enabled)
-
-# Check kernel version
-uname -a
-# Should show: 6.12.10-xilinx-... or similar
-
-# Check module loaded
-lsmod | grep xlnx_dummy
-# Should show: xlnx_dummy_connector ...
-```
-
-#### **3. Install Required Packages**
-
-Update package database and install DRM utilities:
-
-```bash
-# Set correct date (important for apt)
-date -s "2025-12-23 12:00:00"
-
-# Update package list
-apt update
-
-# Install DRM/video utilities
-apt install -y libdrm-tests mesa-utils
-
-# Install framebuffer utilities (optional)
-apt install -y fbi fbset
-
-# Install development tools (optional)
-apt install -y build-essential git
-```
-
-#### **4. Check Locale (If Needed)**
-
-If you see locale warnings:
-
-```bash
-apt install -y locales
-dpkg-reconfigure locales
-# Select: en_US.UTF-8
-```
-           type \= "a"; /\* Type A connector \*/
-
-           port {  
-               hdmi\_connector\_in: endpoint {  
-                   remote-endpoint \= \<\&dvi\_encoder\_out\>;  
-               };  
-           };  
-       };
-
-       /\* 2\. Define the Digilent RGB2DVI as a "Simple Encoder" \*/  
-       dvi\_encoder: encoder {  
-           compatible \= "linux,simple-encoder";
-
-           ports {  
-               \#address-cells \= \<1\>;  
-               \#size-cells \= \<0\>;
-
-               port@0 {  
-                   reg \= \<0\>;  
-                   dvi\_encoder\_in: endpoint {  
-                       remote-endpoint \= \<\&xilinx\_drm\_out\>;  
-                   };  
-               };
-
-               port@1 {  
-                   reg \= \<1\>;  
-                   dvi\_encoder\_out: endpoint {  
-                       remote-endpoint \= \<\&hdmi\_connector\_in\>;  
-                   };  
-               };  
-           };  
-       };  
-   };
-
-   /\* 3\. Link the VDMA and VTC to the DRM Subsystem \*/  
-   \&axi\_vdma\_0 {  
-       dma-ranges \= \<0x00000000 0x00000000 0x40000000\>; // Allow DMA to access first 1GB RAM  
-   };
-
-   /\* 4\. Define the Xilinx DRM PL Display Subsystem \*/  
-   \&amba {  
-       xilinx\_drm: xilinx\_drm {  
-           compatible \= "xlnx,pl-disp";  
-           dmas \= \<\&axi\_vdma\_0 0\>; /\* Link to your VDMA IP \*/  
-           dma-names \= "dma";
-
-           ports {  
-               \#address-cells \= \<1\>;  
-               \#size-cells \= \<0\>;
-
-               port@0 {  
-                   reg \= \<0\>;  
-                   xilinx\_drm\_out: endpoint {  
-                       remote-endpoint \= \<\&dvi\_encoder\_in\>;  
-                       xlnx,video-format \= \<24\>; /\* RGB888 \*/  
-                       xlnx,video-width \= \<8\>;  
-                   };  
-               };  
-           };  
-       };  
-   };
-
-   /\* 5\. Ensure VTC is claimed by the driver \*/  
-   \&v\_tc\_0 {  
-       compatible \= "xlnx,v-tc-5.01.a";  
-   };
-
-   * **Critical Warning:** Ensure the names \&axi\_vdma\_0 and \&v\_tc\_0 match exactly what is in your components/plnx\_workspace/device-tree/device-tree/pl.dtsi. If Vivado named them axi\_vdma\_1, you must update this file.
-
-### **Part C: Rebuild and Deploy**
-
-We need to update the Kernel (modules) and Device Tree (system.dtb).
-
-1. **Build:**  
-   petalinux-build \-c kernel  
-   petalinux-build \-c device-tree
-
-2. Package Boot Image:  
-   (Because we changed the hardware in Step 7, we need a new BOOT.BIN with the new bitstream).  
-   petalinux-package \--boot \--fsbl images/linux/zynq\_fsbl.elf \--fpga images/linux/system.bit \--u-boot \--force
-
-3. **Update SD Card:**  
-   * Copy BOOT.BIN, image.ub, and boot.scr to the FAT32 partition.  
-   * **Note:** You do NOT need to wipe the Debian partition. The new kernel will seamlessly load the old Debian filesystem, but now with working video drivers.
-
-### **Part D: Validation (The moment of truth)**
-
-1. **Boot the Board:** Connect an HDMI monitor.  
-2. **Check Kernel Logs:**  
-   dmesg | grep drm
-
-   * *Success:* You should see \[drm\] Initialized xlnx\_pl\_disp and \[drm\] Found connector HDMI-A-1.  
-3. **Check Devices:**  
-   ls /dev/dri/
-
-   * *Success:* You should see card0 and controlD64.  
-4. Run Modetest:  
-   This tool talks directly to the kernel driver, bypassing X11.  
-   \# Verify connector status  
-   modetest \-M xlnx \-c
-
-   \# Run a test pattern (Connector ID 31, 720p60)  
-   \# Note: Replace '31' with the ID found in the previous command  
-   modetest \-M xlnx \-s 31@30:1280x720-60
-
-   * *Visual:* You should see a color bar pattern on your monitor\!
-
-## **4\. Troubleshooting**
-
-**Issue: dmesg says "deferred probe pending"**
-
-* **Cause:** The VDMA or VTC driver is waiting for a clock that hasn't started.  
-* **Fix:** Ensure your fclk\_clk1 (100MHz) is enabled in the Zynq PS settings in Vivado.
-
-**Issue: Monitor shows "No Signal" but modetest runs**
-
-* **Cause:** Physical timing failure.  
-* **Check:** Did your "Heartbeat LED" (Step 7 Part F) light up? If not, the Clock Wizard isn't locked, and the HDMI PHY is dead.
-
-## **5. Recap**
-
-You have done something very few developers accomplish: you built a custom video card from scratch.
-
-* **Vivado:** Wired the pixels.
-* **Device Tree:** Wired the drivers.
-* **Linux:** Is now rendering graphics to a piece of silicon *you* designed.
 
 ## **7. Next Step**
 
