@@ -1598,12 +1598,46 @@ Now that you have display output and USB input, install a full desktop:
 # Install X11 and XFCE
 apt install -y xserver-xorg-core xserver-xorg-video-fbdev
 apt install -y xfce4 xfce4-terminal
+```
 
+Configure X11 to use the framebuffer. Edit `/etc/X11/xorg.conf`.
+
+```conf
+Section "ServerFlags"
+    Option "AutoAddGPU" "false"
+EndSection
+
+Section "Extensions"
+    Option "GLX" "Disable"
+    Option "Composite" "Disable"
+EndSection
+
+Section "Device"
+    Identifier "modesetting"
+    Driver "modesetting"
+    Option "kmsdev" "/dev/dri/card0"
+    Option "AccelMethod" "none"
+    Option "SWcursor" "true"
+    Option "PageFlip" "false"
+    Option "Atomic" "false"
+EndSection
+
+Section "Screen"
+    Identifier "Screen0"
+    Device "modesetting"
+EndSection
+
+Section "ServerLayout"
+    Identifier "Layout0"
+    Screen "Screen0"
+EndSection
+```
+
+```bash
 # Start desktop
 startxfce4
 ```
 
-See [GUI.md](../GUI.md) for detailed desktop setup.
 
 **Option 2: Networking**
 
@@ -1631,7 +1665,6 @@ Develop embedded applications using:
 
 ## **10. Additional Resources**
 
-- **GUI Setup:** [../GUI.md](../GUI.md) - Desktop environment setup
 - **USB on Linux:** https://www.kernel.org/doc/html/latest/driver-api/usb/index.html
 - **ChipIdea USB Driver:** https://www.kernel.org/doc/html/latest/usb/chipidea.html
 - **ULPI Specification:** USB UTMI+ Low Pin Interface (ULPI) Specification
