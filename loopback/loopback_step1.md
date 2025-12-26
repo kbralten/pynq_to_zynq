@@ -131,13 +131,17 @@ Vivado 2024.x has a known bug where it generates invalid Makefiles for custom dr
 2. Edit the Makefile:  
    Open it in a text editor (Notepad, VS Code).  
    Find these lines (around line 11-12):  
-   LIBSOURCES=($wildcard \*.c)  
-   OUTS \= ($wildcard \*.o)
+   ```
+   LIBSOURCES=($wildcard *.c)  
+   OUTS = ($wildcard *.o)
+   ```
 
 3. Apply the Fix:  
-   Move the $ symbol outside the parentheses and simplify the OUTS line:  
-   LIBSOURCES=$(wildcard \*.c)  
-   OUTS \= \*.o
+   Move the \$ symbol outside the parentheses and simplify the OUTS line:  
+   ```
+   LIBSOURCES=$(wildcard *.c)  
+   OUTS = *.o
+   ```
 
 4. Save and Close.  
    Note: You do not need to do anything else in Vivado. The file is now fixed on disk and will be correctly included when you add this IP to a block design.
