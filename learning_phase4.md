@@ -55,4 +55,4 @@ It covers:
 
 If you are ready to enter the factory and see how the OS is actually made:
 
-**[Enter The Loopback Project](../loopback/index.md)**
+**[Enter The Loopback Project](loopback/index.md)**
