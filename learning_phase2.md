@@ -50,29 +50,29 @@ PYNQ provides Python classes that wrap the complex AXI protocol into simple obje
 
 1. Control LEDs:  
    The base overlay object automatically creates drivers for known peripherals.  
-```python
-# Access the LED GPIO block directly
-# Note: PYNQ maps IP blocks using their Vivado names (e.g., 'leds_gpio')
-leds = base.leds_gpio
+   ```python
+   # Access the LED GPIO block directly
+   # Note: PYNQ maps IP blocks using their Vivado names (e.g., 'leds_gpio')
+   leds = base.leds_gpio
 
-# Address the individual LEDs (indices 0-3)
-led0 = leds[0]
-led1 = leds[1]
+   # Address the individual LEDs (indices 0-3)
+   led0 = leds[0]
+   led1 = leds[1]
 
-# Turn them on/off (Write 1 for High, 0 for Low)
-led0.write(1)
-led1.write(0)
-```
+   # Turn them on/off (Write 1 for High, 0 for Low)
+   led0.write(1)
+   led1.write(0)
+   ```
 
    * *Action:* Look at your board. LD0 should be ON.  
 2. **Read Buttons:**  
-```python
-# Read Button 0 (BTN0)
-# Note: PYNQ maps this to 'btns_gpio'
-btn0 = base.btns_gpio[0]
+   ```python
+   # Read Button 0 (BTN0)
+   # Note: PYNQ maps this to 'btns_gpio'
+   btn0 = base.btns_gpio[0]
 
-print(f"Button 0 State: {btn0.read()}")
-```
+   print(f"Button 0 State: {btn0.read()}")
+   ```
 
    * *Action:* Hold down BTN0 on the board and re-run the cell. The state should change from 0 to 1\.
 
@@ -128,27 +128,27 @@ We will create a loop that uses the **High-Level** driver to read buttons, but u
 
 Run this loop in a new cell:
 
-   ```python
-   import time
+```python
+import time
 
-   print("Press BTN0 to light up LEDs (MMIO Mode). Press BTN3 to exit.")
+print("Press BTN0 to light up LEDs (MMIO Mode). Press BTN3 to exit.")
 
-   while True:  
-      # High-Level Read  
-      if base.btns_gpio[3].read() == 1:  
-         print("Exit command received.")  
-         break  
-            
-      # Logic: Copy Button 0 state to all 4 LEDs  
-      if base.btns_gpio[0].read() == 1:  
-         # Low-Level Write: Turn all ON (0xF)  
-         led_mmio.write(0x0, 0xF)  
-      else:  
-         # Low-Level Write: Turn all OFF (0x0)  
-         led_mmio.write(0x0, 0x0)  
-            
-      time.sleep(0.1)
-   ```
+while True:  
+   # High-Level Read  
+   if base.btns_gpio[3].read() == 1:  
+      print("Exit command received.")  
+      break  
+         
+   # Logic: Copy Button 0 state to all 4 LEDs  
+   if base.btns_gpio[0].read() == 1:  
+      # Low-Level Write: Turn all ON (0xF)  
+      led_mmio.write(0x0, 0xF)  
+   else:  
+      # Low-Level Write: Turn all OFF (0x0)  
+      led_mmio.write(0x0, 0x0)  
+         
+   time.sleep(0.1)
+```
 
 **Action:** Press BTN0 repeatedly. The LEDs should flash in sync with your press.
 
